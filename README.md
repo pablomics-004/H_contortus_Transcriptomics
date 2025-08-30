@@ -1,23 +1,139 @@
-# Ensamble y análisis transcriptómico de *Haemonchus contortus* (IVM-S/IVM-R)
+# Transcriptome Assembly and Analysis of Haemonchus contortus (IVM-S/IVM-R)
 
-**Participantes**
-- Pablo Salazar Mendez <pablosm@lcg.unam.mx>
-- Ashley Yael Montiel Vargas <yaelmont@lcg.unam.mx>
+Date: 29/08/2025
 
-## 📌 Descripción del proyecto
-Este proyecto tiene como objetivo realizar el **ensamblaje y análisis transcriptómico** de *Haemonchus contortus*, un parásito gastrointestinal de importancia veterinaria.  
-Se busca comparar cepas **susceptibles (IVM-S)** y **resistentes (IVM-R)** a la ivermectina (IVM), con el fin de identificar diferencias en la expresión génica asociadas a la resistencia.
+**Participants**:  
+- Pablo Salazar-Mendez <pablosm@lcg.unam.mz>
+- Ashley Yael Montiel-Vargas <yaelmont@lcg.unam.mx>
 
-## 🎯 Objetivos
-- Ensamblar y evaluar la calidad del transcriptoma de *H. contortus*.  
-- Comparar los perfiles de expresión entre cepas IVM-S y IVM-R.  
-- Identificar genes diferencialmente expresados relacionados con resistencia a fármacos
-- Enrequecimiento Funcional 
-- Generar recursos reproducibles para análisis posteriores.
+___
+## 📌 Project Description
+This project aims to perform the *transcriptome assembly and analysis* of Haemonchus contortus, a gastrointestinal parasite of veterinary importance.  
+The goal is to compare *ivermectin-susceptible (IVM-S)* and *ivermectin-resistant (IVM-R)* strains to identify differences in gene expression associated with drug resistance.
+___
 
-## 🧬 Datos
-- Organismo: *Haemonchus contortus*.  
-- Condiciones:  
-  - Cepa susceptible a IVM (IVM-S).  
-  - Cepa resistente a IVM (IVM-R).  
-- Tipo de datos: RNA-seq (Illumina).  
+## 🎯 Objectives
+- Assemble and assess the quality of the H. contortus transcriptome.  
+- Compare gene expression profiles between IVM-S and IVM-R strains.  
+- Identify differentially expressed genes related to drug resistance.  
+- Generate reproducible resources for downstream analyses.
+
+___
+
+## 🧬 Data
+- Organism: Haemonchus contortus  
+- Conditions:  
+  - Ivermectin-susceptible strain (IVM-S)  
+  - Ivermectin-resistant strain (IVM-R)  
+- Data type: RNA-seq (Illumina)
+___
+
+## Work Plan / Timeline
+
+You can check all the workplan and progress on the project associated with this repository <https://github.com/users/pablomics-004/projects/2>
+___
+
+## Methodology
+
+**Research Questions**  
+- What transcriptional differences exist between IVM-S and IVM-R *H. contortus* isolates?  
+- Which genes or pathways are associated with ivermectin resistance?  
+- How can transcriptome data support better understanding of drug resistance mechanisms in parasitic nematodes?  
+
+**Steps**  
+1. Data source identification (RNA-seq Illumina data from IVM-S and IVM-R strains).  
+2. Download and preparation of raw sequencing data.  
+3. Quality control and trimming of raw reads (FastQC, Trimmomatic).  
+4. De novo transcriptome assembly (Trinity).  
+5. Mapping and quantification of transcripts (HISAT2, Salmon/Kallisto).  
+6. Differential expression analysis (DESeq2, EdgeR).  
+7. Functional annotation (BLAST, InterProScan, GO/KEGG).  
+8. Integration and interpretation of results.  
+
+___ 
+
+## Expected Results
+
+- A high-quality transcriptome assembly of *H. contortus* (IVM-S and IVM-R).  
+- Lists of differentially expressed genes between susceptible and resistant isolates.  
+- Functional insights into molecular pathways associated with ivermectin resistance.  
+- Reproducible pipelines and scripts deposited in GitHub.  
+- A documented workflow for future studies on helminth transcriptomics.  
+
+___
+
+## Requirements Specification
+
+**Functional Requirements**  
+- The pipeline must assemble transcriptome data from raw RNA-seq reads.  
+- It must quantify transcript expression and perform differential expression analysis.  
+- It must annotate genes and provide biological context for differentially expressed transcripts.  
+- It must generate reproducible scripts for all steps of the workflow.  
+
+**Non-Functional Requirements**  
+- Scripts must be written in reproducible languages (R, Python, Bash).  
+- The workflow should be modular and easy to adapt to other transcriptomic datasets.  
+- Output should be well-documented and structured for downstream analyses.  
+- Performance should handle large RNA-seq datasets efficiently.  
+
+___
+
+## Analysis and Design
+
+The project will integrate a modular pipeline combining existing bioinformatics tools. Workflow management will focus on data validation, error handling, and reproducibility.  
+
+**Pipeline Design (simplified pseudocode):**
+Main Workflow (Transcriptome_Analysis):
+Input: Raw RNA-seq reads (IVM-S, IVM-R)
+Step 1: Quality_Control(reads)
+Step 2: Trim_Reads(reads)
+Step 3: Assemble_Transcriptome(trimmed_reads)
+Step 4: Map_and_Quantify(assembly, reads)
+Step 5: Differential_Expression(quant_data)
+Step 6: Functional_Annotation(diff_exp_genes)
+Step 7: Generate_Reports(results)
+Output: Expression profiles, annotation, reproducible scripts
+
+**Use Case: Transcriptome Analysis**
+     +---------------+
+     |   Researcher  |
+     +-------+-------+
+             |
+             | 1. Provides RNA-seq data
+             v
+     +-------+-------+
+     | Transcriptome |
+     |  Pipeline     |
+     +---------------+
+
+- **Actor**: Researcher  
+- **Description**: The researcher provides raw RNA-seq data for IVM-S and IVM-R strains. The pipeline validates and processes the data, performs assembly, quantification, differential expression, and annotation, and outputs interpretable results.  
+- **Main Flow**:  
+  1. Input RNA-seq data.  
+  2. Quality check and preprocessing.  
+  3. Transcriptome assembly and quantification.  
+  4. Differential expression analysis.  
+  5. Functional annotation.  
+  6. Results reporting.  
+
+- **Alternative Flows**:  
+  - If input data is corrupted → System halts and reports error.  
+  - If assembly fails → Provide error log and suggest parameter adjustments.  
+  - If no differential expression is detected → Report and flag possible biological/technical causes.  
+
+___
+
+## 📂 Repository Structure
+
+├── data/       # Raw or processed data 
+├── doc/        # Documentation (project notes, references, reports)
+├── results/    # Processed results (tables, figures, reports)
+├── src/        # Source code and analysis scripts (bash, Python, R)
+├── lib/        # External libraries, modules, or custom functions
+├── test/       # Test scripts and validation files
+├── tmp/        # Temporary or intermediate files
+├── LICENSE     # License information for the project
+└── README.md   # Project description and instructions
+
+___
+
