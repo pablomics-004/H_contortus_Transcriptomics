@@ -23,8 +23,16 @@ ___
 ## 🧬 Data
 - Organism: Haemonchus contortus  
 - Conditions:  
-  - Ivermectin-susceptible strain (IVM-S)  
-  - Ivermectin-resistant strain (IVM-R)  
+  - Ivermectin-susceptible strain (IVM-S)
+    Transcriptome availabilty (SRR files):
+    - [SRR21518936](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR21518936&display=download) (`1.9Gb`)
+    - [SRR21518937](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR21518937&display=download) (`1.6Gb`)
+    - [SRR21518938](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR21518938&display=download) (`1.6Gb`)
+  - Ivermectin-resistant strain (IVM-R)
+    Transcriptome availabilty (SRR files):
+    - [SRR21518939](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR21518939&display=download) (`2Gb`)
+    - [SRR21518940](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR21518940&display=download) (`2.7Gb`)
+    - [SRR21518941](https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&acc=SRR21518941&display=download) (`1.5Gb`)
 - Data type: RNA-seq (Illumina)
 ___
 
@@ -137,4 +145,3 @@ ___
 └── README.md   # Project description and instructions
 ```
 ___
-
