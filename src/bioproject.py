@@ -186,60 +186,6 @@ def get_sra_samples(bioproject_id: str, output: str) -> pd.DataFrame | None:
         return None
 # =================================================== #
 
-# ==================== REFERENCE GENOME ==================== #
-def get_reference_genome_info(organism: str, outdir="reference_genome", max_results=5):
-    os.makedirs(outdir, exist_ok=True)
-    print(f"Searching reference genome for: {organism}")
-    try:
-        with Entrez.esearch(db="assembly",
-                            term=f"{organism}[organism] AND latest[filter] AND reference[filter]",
-                            retmax=max_results) as handle:
-            record = Entrez.read(handle)
-        if not record["IdList"]:
-            print(f"No reference genome found for {organism}")
-            return
-        for i, asm_id in enumerate(record["IdList"]):
-            with Entrez.esummary(db="assembly", id=asm_id) as summary:
-                doc = Entrez.read(summary)
-                info = doc["DocumentSummarySet"]["DocumentSummary"][0]
-            ftp_path = info.get("FtpPath_RefSeq") or info.get("FtpPath_GenBank")
-            if not ftp_path:
-                print(f"No FTP path found for assembly {asm_id}")
-                continue
-            asm_name = ftp_path.split("/")[-1]
-            print(f"\n--- Reference Assembly {i+1} ---")
-            print(f"Name: {info.get('AssemblyName', 'N/A')}")
-            print(f"Accession: {info.get('AssemblyAccession', 'N/A')}")
-            print(f"Species: {info.get('SpeciesName', 'N/A')}")
-            print(f"FTP URL: {ftp_path}")
-
-            fasta_url = f"{ftp_path}/{asm_name}_genomic.fna.gz"
-            gff_url = f"{ftp_path}/{asm_name}_genomic.gff.gz"
-
-            for url, filename in [(fasta_url, f"{asm_name}_genomic.fna.gz"),
-                                  (gff_url, f"{asm_name}_genomic.gff.gz")]:
-                filepath = os.path.join(outdir, filename)
-                if file_exists(filepath):
-                    print(f"{filename} already exists. Skipping.")
-                    continue
-                try:
-                    print(f"Downloading {filename} ...")
-                    urllib.request.urlretrieve(url, filepath)
-                    if file_exists(filepath):
-                        print(f"Successfully downloaded {filename}")
-                        logging.info(f"Downloaded {filename}")
-                    else:
-                        print(f"Failed to download {filename}")
-                except Exception as download_error:
-                    print(f"Error downloading {filename}: {download_error}")
-                    logging.error(f"Error downloading {filename}: {download_error}")
-        print(f"Reference genome download completed for {organism}")
-        logging.info(f"Reference genome processing completed for {organism}")
-    except Exception as e:
-        logging.error(f"Error fetching reference genome: {e}")
-        print(f"Error fetching reference genome: {e}")
-# =================================================== #
-
 # ==================== SRA DOWNLOAD & CONCAT ==================== #
 def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_dir: str):
 
@@ -262,7 +208,6 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
             r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
             r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
 
-            # Descarga solo si no existe o está vacío
             if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
                 print(f"Prefetching {run} ...")
                 subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
@@ -276,7 +221,6 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
             if r2_path and file_exists(r2_path) and check_format(r2_path, ".fastq.gz"):
                 r2_files.append(r2_path)
 
-        # Concatenación usando Popen + PIPE si hay más de un archivo
         def concat_gz(files, output_file):
             if file_exists(output_file):
                 print(f"{output_file} already exists. Skipping concatenation.")
@@ -341,17 +285,14 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
             for url, filename in files_to_download:
                 filepath = os.path.join(outdir, filename)
 
-                # Verificar si ya existe
                 if file_exists(filepath):
                     print(f"{filename} already exists. Skipping.")
                     continue
 
-                # Verificar formato
                 if not check_format(filename, os.path.splitext(filename)[1]):
                     logging.warning(f"Skipping {filename} due to format mismatch.")
                     continue
-
-                # Verificar URL antes de descargar
+                    
                 try:
                     with urllib.request.urlopen(url) as response:
                         if response.status != 200:
@@ -362,8 +303,7 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
                     print(f"Error accessing URL {url}: {url_error}")
                     logging.warning(f"Error accessing URL {url}: {url_error}")
                     continue
-
-                # Descargar
+                    
                 try:
                     print(f"Downloading {filename} ...")
                     urllib.request.urlretrieve(url, filepath)
