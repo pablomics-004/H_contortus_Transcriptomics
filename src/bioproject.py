@@ -19,7 +19,7 @@ from Bio import Entrez
 import pandas as pd
 import os
 import subprocess
-import argparse
+import argparse as ap
 import logging
 import time
 import urllib.request
@@ -302,7 +302,7 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
 # =================================================== #
 
 # ==================== REFERENCE GENOME ==================== #
-def get_reference_genome_info(organism: str, outdir="reference_genome", max_results=5):
+def get_reference_genome_info(organism: str, outdir="reference_genome", max_results=5) -> None:
     os.makedirs(outdir, exist_ok=True)
     print(f"Searching reference genome for: {organism}")
     try:
@@ -381,8 +381,8 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
 # =================================================== #
 
 # ==================== MAIN ==================== #
-def main():
-    parser = argparse.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
+def my_parser() -> ap.Namespace:
+    parser = ap.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
     parser.add_argument("-p", "--project", required=True, help="BioProject ID (e.g., PRJNA877658)")
     parser.add_argument("-e", "--email", required=True, help="Email for NCBI Entrez")
     parser.add_argument("-a", "--api_key", help="API key for NCBI Entrez (optional)")
@@ -397,8 +397,12 @@ def main():
                         help="Download reference genome. Without argument uses BioProject organism, or specify an organism")
     parser.add_argument("--max-ref-results", type=int, default=5,
                         help="Maximum number of reference results to show (default: 5)")
-    args = parser.parse_args()
+    return parser.parse_args()
+# ============================================== #
 
+# ==================== MAIN ==================== #
+def main():
+    args = my_parser()
     # Crear subdirectorios organizados
     sra_dir = os.path.join(args.outdir, "sra")
     concat_dir = os.path.join(args.outdir, "fastq_merged")
