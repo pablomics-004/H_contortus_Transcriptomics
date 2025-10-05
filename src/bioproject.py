@@ -22,7 +22,7 @@ import subprocess
 import argparse as ap
 import logging
 import time
-import urllib.request
+from urllib.request import urlretrieve, urlopen
 from collections import defaultdict
 from datetime import datetime
 
@@ -332,12 +332,10 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
             print(f"Species: {info.get('SpeciesName', 'N/A')}")
             print(f"FTP URL: {ftp_path}")
 
-            files_to_download = [
-                (f"{ftp_path}/{asm_name}_genomic.fna.gz", f"{asm_name}_genomic.fna.gz"),
-                (f"{ftp_path}/{asm_name}_genomic.gff.gz", f"{asm_name}_genomic.gff.gz")
-            ]
+            urls = [f"{ftp_path}/{asm_name}_genomic.fna.gz",f"{ftp_path}/{asm_name}_genomic.gff.gz"]
+            filenames = [f"{asm_name}_genomic.fna.gz",f"{asm_name}_genomic.gff.gz"]
 
-            for url, filename in files_to_download:
+            for url, filename in zip(urls, filenames):
                 filepath = os.path.join(outdir, filename)
 
                 if file_exists(filepath):
@@ -349,7 +347,7 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
                     continue
                     
                 try:
-                    with urllib.request.urlopen(url) as response:
+                    with urlopen(url) as response:
                         if response.status != 200:
                             print(f"URL not accessible: {url}")
                             logging.warning(f"URL not accessible: {url}")
@@ -361,7 +359,7 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
                     
                 try:
                     print(f"Downloading {filename} ...")
-                    urllib.request.urlretrieve(url, filepath)
+                    urlretrieve(url, filepath)
                     if file_exists(filepath):
                         print(f"Successfully downloaded {filename}")
                         logging.info(f"Downloaded {filename}")
