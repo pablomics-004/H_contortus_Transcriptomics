@@ -2,6 +2,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+conda activate sra-tools
+
 usage() {
     cat <<EOF
 Usage: ./src/pf_fastqc.sh -s <sra_paths> [-p|--paired] SRR21518936 SRR21518939 ...
@@ -110,3 +112,5 @@ for SRR in "$@"; do
 done
 
 echo "[DONE] Download and conversion completed."
+
+conda deactivate

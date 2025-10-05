@@ -25,6 +25,7 @@ import time
 from urllib.request import urlretrieve, urlopen
 from collections import defaultdict
 from datetime import datetime
+from re import search
 
 # ==================== LOGGING CONFIGURATION ==================== #
 log_filename = f"bioproject_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -57,6 +58,10 @@ def check_format(filepath: str, expected_extension: str) -> bool:
         logging.warning(f"Format mismatch: {filepath} (expected {expected_extension})")
         return False
     return True
+
+def __to_srr(x: str) -> str:
+    m = search(r'(SRR\d+)', str)
+    return m.group(1) if m else str(x)
 # =================================================== #
 
 # ==================== BIOPROJECT ==================== #
@@ -91,12 +96,17 @@ def get_associated_databases(bioproject_id: str) -> list[str]:
     try:
         with Entrez.elink(dbfrom="bioproject", id=bioproject_id) as handle:
             records = Entrez.read(handle)
-        linked_dbs = []
-        for linkset in records:
-            if "LinkSetDb" in linkset:
-                for db in linkset["LinkSetDb"]:
-                    linked_dbs.append(db["DbTo"])
-        linked_dbs = sorted(set(linked_dbs))
+        # linked_dbs = []
+        # for linkset in records:
+        #     if "LinkSetDb" in linkset:
+        #         for db in linkset["LinkSetDb"]:
+        #             linked_dbs.append(db["DbTo"])
+        # linked_dbs = sorted(set(linked_dbs))
+        linked_dbs = sorted({
+            db['DbTo']
+            for linkset in records if 'LinkSetDb' in linkset
+            for db in linkset['LinkSetDb']
+        })
         msg = "=== Associated Databases ===\n" + "\n".join(f"- {db}" for db in linked_dbs)
         print(msg)
         logging.info(msg)
@@ -242,7 +252,7 @@ def get_sra_samples(bioproject_id: str, output: str) -> pd.DataFrame | None:
 # =================================================== #
 
 # ==================== SRA DOWNLOAD & CONCAT ==================== #
-def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_dir: str):
+def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_dir: str, bash: bool = False) -> None:
 
     os.makedirs(sra_dir, exist_ok=True)
     os.makedirs(concat_dir, exist_ok=True)
@@ -257,47 +267,54 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
     for sample_name, runs in grouped.items():
         r1_files, r2_files = [], []
 
-        for run in runs:
-            run_dir = os.path.join(sra_dir, run)
-            os.makedirs(run_dir, exist_ok=True)
-            r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
-            r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
+        if bash: 
+            ...
+        else:
 
-            if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
-                print(f"Prefetching {run} ...")
-                subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
-                print(f"Converting {run} to FASTQ.gz ...")
-                subprocess.run(["fastq-dump", run, "-O", run_dir, "--split-files", "--gzip"], check=True)
-            else:
-                print(f"{run} already downloaded. Skipping.")
+            for run in runs:
+                run_id = __to_srr(run)
 
-            if file_exists(r1_path) and check_format(r1_path, ".fastq.gz"):
-                r1_files.append(r1_path)
-            if r2_path and file_exists(r2_path) and check_format(r2_path, ".fastq.gz"):
-                r2_files.append(r2_path)
+                run_dir = os.path.join(sra_dir, run_id)
+                os.makedirs(run_dir, exist_ok=True)
 
-        def concat_gz(files, output_file):
-            if file_exists(output_file):
-                print(f"{output_file} already exists. Skipping concatenation.")
-                return
-            with open(output_file, "wb") as fout:
-                p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
-                p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
-                p1.stdout.close()
-                p2.communicate()
-            if check_format(output_file, ".fastq.gz"):
-                print(f"Concatenation completed: {output_file}")
-            else:
-                print(f"Warning: format mismatch after concatenation: {output_file}")
+                r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
+                r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
 
-        if r1_files:
-            out_r1 = os.path.join(concat_dir, f"{sample_name}_1.fastq.gz")
-            concat_gz(r1_files, out_r1)
-        if layout_map[sample_name] == "PAIRED" and r2_files:
-            out_r2 = os.path.join(concat_dir, f"{sample_name}_2.fastq.gz")
-            concat_gz(r2_files, out_r2)
+                if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
+                    print(f"Prefetching {run} ...")
+                    subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
+                    print(f"Converting {run} to FASTQ.gz ...")
+                    subprocess.run(["fastq-dump", run, "-O", run_dir, "--split-files", "--gzip"], check=True)
+                else:
+                    print(f"{run} already downloaded. Skipping.")
 
-        print(f"Sample {sample_name} processed successfully.\n")
+                if file_exists(r1_path) and check_format(r1_path, ".fastq.gz"):
+                    r1_files.append(r1_path)
+                if r2_path and file_exists(r2_path) and check_format(r2_path, ".fastq.gz"):
+                    r2_files.append(r2_path)
+
+            def concat_gz(files, output_file):
+                if file_exists(output_file):
+                    print(f"{output_file} already exists. Skipping concatenation.")
+                    return
+                with open(output_file, "wb") as fout:
+                    p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
+                    p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
+                    p1.stdout.close()
+                    p2.communicate()
+                if check_format(output_file, ".fastq.gz"):
+                    print(f"Concatenation completed: {output_file}")
+                else:
+                    print(f"Warning: format mismatch after concatenation: {output_file}")
+
+            if r1_files:
+                out_r1 = os.path.join(concat_dir, f"{sample_name}_1.fastq.gz")
+                concat_gz(r1_files, out_r1)
+            if layout_map[sample_name] == "PAIRED" and r2_files:
+                out_r2 = os.path.join(concat_dir, f"{sample_name}_2.fastq.gz")
+                concat_gz(r2_files, out_r2)
+
+            print(f"Sample {sample_name} processed successfully.\n")
         
 # =================================================== #
 
@@ -381,19 +398,20 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
 # ==================== MAIN ==================== #
 def my_parser() -> ap.Namespace:
     parser = ap.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
-    parser.add_argument("-p", "--project", required=True, help="BioProject ID (e.g., PRJNA877658)")
-    parser.add_argument("-e", "--email", required=True, help="Email for NCBI Entrez")
-    parser.add_argument("-a", "--api_key", help="API key for NCBI Entrez (optional)")
-    parser.add_argument("-o", "--outdir", default="bioproject_data", help="Output directory for all downloads")
+    parser.add_argument("-p", "--project", type=str, required=True, help="BioProject ID (e.g., PRJNA877658)")
+    parser.add_argument("-e", "--email", type=str, required=True, help="Email for NCBI Entrez")
+    parser.add_argument("-a", "--api_key", type=str, help="API key for NCBI Entrez (optional)")
+    parser.add_argument("-o", "--outdir", type=str, default="bioproject_data", help="Output directory for all downloads")
     parser.add_argument("-i", "--info", action="store_true", help="Show BioProject general information")
     parser.add_argument("-d", "--databases", action="store_true", help="Show associated databases")
     parser.add_argument("-b", "--biosamples", action="store_true", help="Retrieve BioSamples information")
     parser.add_argument("-s", "--samples", action="store_true", help="Get SRA samples table")
-    parser.add_argument("--download-all", action="store_true", help="Download all SRA FASTQ runs")
+    parser.add_argument("--download_all", action="store_true", help="Download all SRA FASTQ runs")
     parser.add_argument("--concat", action="store_true", help="Concatenate multiple FASTQs per sample")
+    parser.add_argument("-u", "--use_bash", action="store_true", help="Allows the downloading and concatenation of sra by a bash script")
     parser.add_argument("-r", "--reference", nargs='?', const="auto", metavar="ORGANISM",
                         help="Download reference genome. Without argument uses BioProject organism, or specify an organism")
-    parser.add_argument("--max-ref-results", type=int, default=5,
+    parser.add_argument("--max_ref_results", type=int, default=5,
                         help="Maximum number of reference results to show (default: 5)")
     return parser.parse_args()
 # ============================================== #
@@ -437,7 +455,7 @@ def main():
         if sra_df is None:
             sra_df = get_sra_samples(args.project, output=os.path.join(sra_dir, "samples.csv"))
         if sra_df is not None and (args.download_all or args.concat):
-            download_and_concat_sra_grouped(sra_df, sra_dir, concat_dir)
+            download_and_concat_sra_grouped(sra_df, sra_dir, concat_dir, args.use_bash)
         else:
             print("No SRA data available for download or concatenation")
 
