@@ -107,45 +107,98 @@ def get_associated_databases(bioproject_id: str) -> list[str]:
         return []
 # =================================================== #
 
+# ================= FETCH BIOSAMPLES ================= #
+def fetch_biosamples(bid: str) -> dict | None:
+    try:
+        with Entrez.esummary(db='biosample', id=bid) as handle:
+            summary = Entrez.read(handle)[0]
+        return {
+            'BioSample_ID' : summary.get('Id', dft := 'N/A'),
+            'Accession' : summary.get('Accession', dft),
+            'Organism' : summary.get('Organism', dft),
+            'Title' : summary.get('Title', dft),
+            'Attributes' : summary.get('Attributes', dft),
+            'SubmissionDate' : summary.get('SubmissionDate', dft)
+        }
+    except Exception as inner_e:
+        logging.warning(f"Error retrieving BioSample {bid}: {inner_e}")
+        return
+    finally:
+        time.sleep(0.34)
+# =================================================== #
+
 # ==================== BIOSAMPLES ==================== #
 def get_biosample_info(bioproject_id: str, output: str) -> pd.DataFrame | None:
     try:
         with Entrez.elink(dbfrom="bioproject", id=bioproject_id, db="biosample") as handle:
             records = Entrez.read(handle)
-        biosample_ids = []
-        for linkset in records:
-            for db in linkset.get("LinkSetDb", []):
-                for link in db.get("Link", []):
-                    biosample_ids.append(link["Id"])
+        
+        # biosample_ids = []
+        # for linkset in records:
+        #     for db in linkset.get("LinkSetDb", []):
+        #         for link in db.get("Link", []):
+        #             biosample_ids.append(link["Id"])
+        
+        biosample_ids = [
+            link['Id']
+            for linkset in records
+            for db in linkset.get('LinkSetDb', [])
+            for link in db.get('Link', []) if 'Id' in link
+        ]
+
         if not biosample_ids:
             print("No BioSamples linked to this BioProject.")
-            return None
-        biosamples = []
-        for bid in biosample_ids:
-            try:
-                with Entrez.esummary(db="biosample", id=bid) as handle:
-                    summary = Entrez.read(handle)[0]
-                biosamples.append({
-                    "BioSample_ID": summary.get("Id", "N/A"),
-                    "Accession": summary.get("Accession", "N/A"),
-                    "Organism": summary.get("Organism", "N/A"),
-                    "Title": summary.get("Title", "N/A"),
-                    "Attributes": summary.get("Attributes", "N/A"),
-                    "SubmissionDate": summary.get("SubmissionDate", "N/A")
-                })
-                time.sleep(0.3)
-            except Exception as inner_e:
-                logging.warning(f"Error retrieving BioSample {bid}: {inner_e}")
-        df = pd.DataFrame(biosamples)
+            return
+                
+        # biosamples = []
+        # for bid in biosample_ids:
+        #     try:
+        #         with Entrez.esummary(db="biosample", id=bid) as handle:
+        #             summary = Entrez.read(handle)[0]
+        #         biosamples.append({
+        #             "BioSample_ID": summary.get("Id", "N/A"),
+        #             "Accession": summary.get("Accession", "N/A"),
+        #             "Organism": summary.get("Organism", "N/A"),
+        #             "Title": summary.get("Title", "N/A"),
+        #             "Attributes": summary.get("Attributes", "N/A"),
+        #             "SubmissionDate": summary.get("SubmissionDate", "N/A")
+        #         })
+        #         time.sleep(0.3)
+        #     except Exception as inner_e:
+        #         logging.warning(f"Error retrieving BioSample {bid}: {inner_e}")
+        
+        df = pd.DataFrame(filter(None, map(fetch_biosamples, biosample_ids)))
         df.to_csv(output, index=False)
         print(f"Retrieved {len(df)} BioSamples. Saved to {output}")
         logging.info(f"Retrieved {len(df)} BioSamples.")
         return df
+    
     except Exception as e:
         logging.error(f"Error fetching BioSamples: {e}")
         print(f"Error fetching BioSamples: {e}")
-        return None
+        return
 # =================================================== #
+
+# ================== FETCH SRA ================== #
+def fetch_sra(sra_id: str) -> dict | None:
+    try:
+        with Entrez.esummary(db="sra", id=sra_id) as handle:
+            summary = Entrez.read(handle)[0]
+            return {
+                'RunAccession' : summary.get('Runs', dft:='N/A').split(',')[0],
+                'Title' : summary.get('Title', dft),
+                'Organism' : summary.get('Organism', dft),
+                'Instrument' : summary.get('Instrument', dft),
+                'LibraryLayout' : summary.get('LibraryLayout', dft),
+                'Bases' : summary.get('Bases', dft),
+                'Spots' : summary.get('Spots', dft)
+            }
+    except Exception as inner_e:
+        logging.warning(f"Skipping SRA ID {sra_id}: {inner_e}")
+        return
+    finally:
+        time.sleep(0.34)
+# =============================================== #
 
 # ==================== SRA ==================== #
 def get_sra_samples(bioproject_id: str, output: str) -> pd.DataFrame | None:
@@ -157,25 +210,27 @@ def get_sra_samples(bioproject_id: str, output: str) -> pd.DataFrame | None:
         logging.info(f"Found {len(ids)} SRA entries linked to {bioproject_id}")
         if not ids:
             print("Warning: No SRA entries found.")
-            return None
-        sample_data = []
-        for sra_id in ids:
-            try:
-                with Entrez.esummary(db="sra", id=sra_id) as handle:
-                    summary = Entrez.read(handle)[0]
-                sample_data.append({
-                    "RunAccession": summary.get("Runs", "N/A").split(",")[0],
-                    "Title": summary.get("Title", "N/A"),
-                    "Organism": summary.get("Organism", "N/A"),
-                    "Instrument": summary.get("Instrument", "N/A"),
-                    "LibraryLayout": summary.get("LibraryLayout", "N/A"),
-                    "Bases": summary.get("Bases", "N/A"),
-                    "Spots": summary.get("Spots", "N/A")
-                })
-                time.sleep(0.3)
-            except Exception as inner_e:
-                logging.warning(f"Skipping SRA ID {sra_id}: {inner_e}")
-        df = pd.DataFrame(sample_data)
+            return
+        
+        # sample_data = []
+        # for sra_id in ids:
+        #     try:
+        #         with Entrez.esummary(db="sra", id=sra_id) as handle:
+        #             summary = Entrez.read(handle)[0]
+        #         sample_data.append({
+        #             "RunAccession": summary.get("Runs", "N/A").split(",")[0],
+        #             "Title": summary.get("Title", "N/A"),
+        #             "Organism": summary.get("Organism", "N/A"),
+        #             "Instrument": summary.get("Instrument", "N/A"),
+        #             "LibraryLayout": summary.get("LibraryLayout", "N/A"),
+        #             "Bases": summary.get("Bases", "N/A"),
+        #             "Spots": summary.get("Spots", "N/A")
+        #         })
+        #         time.sleep(0.3)
+        #     except Exception as inner_e:
+        #         logging.warning(f"Skipping SRA ID {sra_id}: {inner_e}")
+
+        df = pd.DataFrame(filter(None, map(fetch_sra, ids)))
         df.to_csv(output, index=False)
         print(f"Saved SRA sample info to {output}")
         logging.info(f"Saved {len(df)} SRA entries to {output}")
@@ -183,7 +238,7 @@ def get_sra_samples(bioproject_id: str, output: str) -> pd.DataFrame | None:
     except Exception as e:
         logging.error(f"Error fetching SRA samples: {e}")
         print(f"Error fetching SRA samples: {e}")
-        return None
+        return
 # =================================================== #
 
 # ==================== SRA DOWNLOAD & CONCAT ==================== #
