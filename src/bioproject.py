@@ -23,6 +23,7 @@ import argparse as ap
 import logging
 import time
 import re
+import shlex
 from urllib.request import urlretrieve, urlopen
 from collections import defaultdict
 from datetime import datetime
@@ -60,7 +61,7 @@ def check_format(filepath: str, expected_extension: str) -> bool:
     return True
 
 def __to_srr(x: str) -> str:
-    m = re.search(r'(SRR\d+)', str)
+    m = re.search(r'(SRR\d+)', x)
     return m.group(1) if m else str(x)
 # =================================================== #
 
@@ -281,18 +282,18 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
                 '-s', sra_dir,
                 '-c', concat_dir,
                 '-S', sample_name,
-                '-o', out_prefix,
+                '-o', sample_name,
                 '-m', manifest_path,
             ]
             if paired:
                 cmmd.append('-p')
             cmmd += run_ids
 
-            print("[BASH] ", " ".join(shlex.quote(x) for x in cmmd)); subprocess.run(cmd, check=True)
+            print("[BASH] ", " ".join(shlex.quote(x) for x in cmmd)); subprocess.run(cmmd, check=True)
 
         # Add -c if you want to use fast_cat
         cmmd2 = [script2, '-m', manifest_path,'-f']
-        print("[BASH] ", " ".join(shlex.quote(x) for x in cmmd2)); subprocess.run(cmd2, check=True)
+        print("[BASH] ", " ".join(shlex.quote(x) for x in cmmd2)); subprocess.run(cmmd2, check=True)
 
         print(f"[INFO] Concatenation done from manifest: {manifest_path}")
         return
