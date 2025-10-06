@@ -267,22 +267,29 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
 
     if bash: 
         here = os.path.dirname(os.path.abspath(__file__))
-        script1 = os.path.join(here, 'src/pf_fastqc.sh')
-        script2 = os.path.join(here, 'src/concatenate_fastq.sh')
+        script1 = os.path.join(here, 'pf_fastq.sh')
+        script2 = os.path.join(here, 'concatenate_fastq.sh')
+
+        # Validation for my own
+        for s in (script1, script2):
+            if not os.path.isfile(s):
+                raise FileNotFoundError(f"Required bash script not found: {s}")
+            if not os.access(s, os.X_OK):
+                raise PermissionError(f"Bash script is not executable: {s}")
 
         manifest_path = os.path.join(sra_dir, f'manifest_runs.{int(time.time())}.tsv')
 
         for sample, runs in grouped.items():
             run_ids = [__to_srr(r) for r in runs]
-            layout = layout_map[sample_name].upper()
+            layout = str(layout_map.get(sample, 'SINGLE')).upper()
             paired = (layout == 'PAIRED')
 
             cmmd = [
                 script1,
                 '-s', sra_dir,
                 '-c', concat_dir,
-                '-S', sample_name,
-                '-o', sample_name,
+                '-S', sample,
+                '-o', sample,
                 '-m', manifest_path,
             ]
             if paired:
@@ -307,16 +314,16 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
             run_dir = os.path.join(sra_dir, run_id)
             os.makedirs(run_dir, exist_ok=True)
 
-            r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
-            r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
+            r1_path = os.path.join(run_dir, f"{run_id}_1.fastq.gz")
+            r2_path = os.path.join(run_dir, f"{run_id}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
 
             if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
-                print(f"Prefetching {run} ...")
-                subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
-                print(f"Converting {run} to FASTQ.gz ...")
-                subprocess.run(["fastq-dump", run, "-O", run_dir, "--split-files", "--gzip"], check=True)
+                print(f"Prefetching {run_id} ...")
+                subprocess.run(["prefetch", "--output-directory", sra_dir, run_id], check=True)
+                print(f"Converting {run_id} to FASTQ.gz ...")
+                subprocess.run(["fastq-dump", run_id, "-O", run_dir, "--split-files", "--gzip"], check=True)
             else:
-                print(f"{run} already downloaded. Skipping.")
+                print(f"{run_id} already downloaded. Skipping.")
 
             if file_exists(r1_path) and check_format(r1_path, ".fastq.gz"):
                 r1_files.append(r1_path)

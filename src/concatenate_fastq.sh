@@ -2,6 +2,7 @@
 set -euo pipefail
 IFS=$'\n\t'
 
+# ==================================== USAGE DESCRIPTION ==================================== #
 usage() {
     cat <<EOF
 Usage: ./concatenate_fastq.sh -m manifest -f
@@ -12,7 +13,9 @@ Usage: ./concatenate_fastq.sh -m manifest -f
 The TSV file must contain the columns (tab): sample_name layout R1 R2 concat_dir out_prefix
 EOF
 }
+# =========================================================================================== #
 
+# ==================================== PARSING ARGUMENTS ==================================== #
 MANIFEST=""
 FORCE=false
 FAST_CAT=false
@@ -28,10 +31,14 @@ while [[ $# -gt 0 ]]; do
         *)  break ;;
     esac
 done
+# =========================================================================================== #
 
+# ==================================== VERIFICATIONS ==================================== #
 [[ -z "${MANIFEST}" ]] && { echo "[ERROR] -m|--manifest is absent" >&2; usage; exit 2; }
 [[ -r "${MANIFEST}" ]] || { echo "[ERROR] ${MANIFEST} couldn't be read" >&2; exit 2; }
+# ======================================================================================= #
 
+# ==================================== FUNCTIONS ==================================== #
 COMPRESS_CMD=(gzip -c)
 
 check_fastq() { # Validates FASTQ files (existence, size and structure)
@@ -89,7 +96,9 @@ concat_list() {
   mv -f "${tmp}" "${out}"
   return 0
 }
+# =================================================================================== #
 
+# ==================================== READING MANIFEST ==================================== #
 declare -A R1_MAP
 declare -A R2_MAP
 
@@ -112,6 +121,7 @@ while IFS=$'\t' read -r sample_name layout R1 R2 concat_dir out_prefix; do
     R2_MAP["$key"]+="${R2}"$'\n'
   fi
 done < "${MANIFEST}"
+# ========================================================================================== #
 
 # =================== PROCESSING EACH GROUP =================== #
 for key in "${!R1_MAP[@]}"; do
@@ -142,3 +152,5 @@ for key in "${!R1_MAP[@]}"; do
 
   echo "[DONE] ${sample_name} → ${out_prefix} en ${concat_dir}"
 done
+
+# ============================================================ #

@@ -2,8 +2,8 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-#conda activate sra-tools
 
+# ============================ USAGE DESCRIPTION =================================== #
 usage() {
     cat <<EOF
 Usage: ./src/pf_fastq.sh -s <sra_paths> [-p|--paired] SRR21518936 SRR21518939 ...
@@ -18,6 +18,7 @@ Example:
     ./src/pf_fastq.sh -s /data/sra -p SRR21518936 SRR21518939 ...
 EOF
 }
+# ================================================================================== #
 
 # Initializing variables
 PAIRED=false
@@ -42,6 +43,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ======================================== VERIFICATIONS ======================================== #
 [[ -z "${SRA_DIR}"      ]] && { echo "[ERROR] -s|--sra-dir is absent" >&2; usage; exit 2; }
 [[ -z "${CONCAT_DIR}"   ]] && { echo "[ERROR] -c|--concat-dir  is absent" >&2; usage; exit 2; }
 [[ -z "${SAMPLE_NAME}"  ]] && { echo "[ERROR] -S|--sample-name  is absent" >&2; usage; exit 2; }
@@ -62,7 +64,9 @@ if [[ ! -s "${MANIFEST}" ]]; then
   printf "# sample_name\tlayout\tR1\tR2\tconcat_dir\tout_prefix\n" > "${MANIFEST}"
 fi
 
+# =============================================================================================== #
 
+# ======================================== FUNCTIONS ======================================== #
 have_fastq() {
     local run_dir="$1" srr="$2" paired="$3"
     local r1="${run_dir}/${srr}_1.fastq.gz"
@@ -82,7 +86,9 @@ have_fastq() {
     fi
     return 0
 }
+# ============================================================================================ #
 
+# ================================================== MAIN ================================================== #
 for SRR in "$@"; do
     run_dir="${SRA_DIR}/${SRR}"
     mkdir -p "${run_dir}"
@@ -114,5 +120,4 @@ for SRR in "$@"; do
 done
 
 echo "[DONE] Download and conversion completed."
-
-#conda deactivate
+# ========================================================================================================== #
