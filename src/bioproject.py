@@ -22,10 +22,10 @@ import subprocess
 import argparse as ap
 import logging
 import time
+import re
 from urllib.request import urlretrieve, urlopen
 from collections import defaultdict
 from datetime import datetime
-from re import search
 
 # ==================== LOGGING CONFIGURATION ==================== #
 log_filename = f"bioproject_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -60,7 +60,7 @@ def check_format(filepath: str, expected_extension: str) -> bool:
     return True
 
 def __to_srr(x: str) -> str:
-    m = search(r'(SRR\d+)', str)
+    m = re.search(r'(SRR\d+)', str)
     return m.group(1) if m else str(x)
 # =================================================== #
 
@@ -264,57 +264,86 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
         grouped[row['Title']].append(row['RunAccession'])
         layout_map[row['Title']] = row['LibraryLayout']
 
+    if bash: 
+        here = os.path.dirname(os.path.abspath(__file__))
+        script1 = os.path.join(here, 'src/pf_fastqc.sh')
+        script2 = os.path.join(here, 'src/concatenate_fastq.sh')
+
+        manifest_path = os.path.join(sra_dir, f'manifest_runs.{int(time.time())}.tsv')
+
+        for sample, runs in grouped.items():
+            run_ids = [__to_srr(r) for r in runs]
+            layout = layout_map[sample_name].upper()
+            paired = (layout == 'PAIRED')
+
+            cmmd = [
+                script1,
+                '-s', sra_dir,
+                '-c', concat_dir,
+                '-S', sample_name,
+                '-o', out_prefix,
+                '-m', manifest_path,
+            ]
+            if paired:
+                cmmd.append('-p')
+            cmmd += run_ids
+
+            print("[BASH] ", " ".join(shlex.quote(x) for x in cmmd)); subprocess.run(cmd, check=True)
+
+        # Add -c if you want to use fast_cat
+        cmmd2 = [script2, '-m', manifest_path,'-f']
+        print("[BASH] ", " ".join(shlex.quote(x) for x in cmmd2)); subprocess.run(cmd2, check=True)
+
+        print(f"[INFO] Concatenation done from manifest: {manifest_path}")
+        return
+
     for sample_name, runs in grouped.items():
         r1_files, r2_files = [], []
+        
+        for run in runs:
+            run_id = __to_srr(run)
 
-        if bash: 
-            ...
-        else:
+            run_dir = os.path.join(sra_dir, run_id)
+            os.makedirs(run_dir, exist_ok=True)
 
-            for run in runs:
-                run_id = __to_srr(run)
+            r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
+            r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
 
-                run_dir = os.path.join(sra_dir, run_id)
-                os.makedirs(run_dir, exist_ok=True)
+            if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
+                print(f"Prefetching {run} ...")
+                subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
+                print(f"Converting {run} to FASTQ.gz ...")
+                subprocess.run(["fastq-dump", run, "-O", run_dir, "--split-files", "--gzip"], check=True)
+            else:
+                print(f"{run} already downloaded. Skipping.")
 
-                r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
-                r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
+            if file_exists(r1_path) and check_format(r1_path, ".fastq.gz"):
+                r1_files.append(r1_path)
+            if r2_path and file_exists(r2_path) and check_format(r2_path, ".fastq.gz"):
+                r2_files.append(r2_path)
 
-                if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
-                    print(f"Prefetching {run} ...")
-                    subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
-                    print(f"Converting {run} to FASTQ.gz ...")
-                    subprocess.run(["fastq-dump", run, "-O", run_dir, "--split-files", "--gzip"], check=True)
-                else:
-                    print(f"{run} already downloaded. Skipping.")
+        def concat_gz(files, output_file):
+            if file_exists(output_file):
+                print(f"{output_file} already exists. Skipping concatenation.")
+                return
+            with open(output_file, "wb") as fout:
+                p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
+                p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
+                p1.stdout.close()
+                p2.communicate()
+            if check_format(output_file, ".fastq.gz"):
+                print(f"Concatenation completed: {output_file}")
+            else:
+                print(f"Warning: format mismatch after concatenation: {output_file}")
 
-                if file_exists(r1_path) and check_format(r1_path, ".fastq.gz"):
-                    r1_files.append(r1_path)
-                if r2_path and file_exists(r2_path) and check_format(r2_path, ".fastq.gz"):
-                    r2_files.append(r2_path)
+        if r1_files:
+            out_r1 = os.path.join(concat_dir, f"{sample_name}_1.fastq.gz")
+            concat_gz(r1_files, out_r1)
+        if layout_map[sample_name] == "PAIRED" and r2_files:
+            out_r2 = os.path.join(concat_dir, f"{sample_name}_2.fastq.gz")
+            concat_gz(r2_files, out_r2)
 
-            def concat_gz(files, output_file):
-                if file_exists(output_file):
-                    print(f"{output_file} already exists. Skipping concatenation.")
-                    return
-                with open(output_file, "wb") as fout:
-                    p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
-                    p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
-                    p1.stdout.close()
-                    p2.communicate()
-                if check_format(output_file, ".fastq.gz"):
-                    print(f"Concatenation completed: {output_file}")
-                else:
-                    print(f"Warning: format mismatch after concatenation: {output_file}")
-
-            if r1_files:
-                out_r1 = os.path.join(concat_dir, f"{sample_name}_1.fastq.gz")
-                concat_gz(r1_files, out_r1)
-            if layout_map[sample_name] == "PAIRED" and r2_files:
-                out_r2 = os.path.join(concat_dir, f"{sample_name}_2.fastq.gz")
-                concat_gz(r2_files, out_r2)
-
-            print(f"Sample {sample_name} processed successfully.\n")
+        print(f"Sample {sample_name} processed successfully.\n")
         
 # =================================================== #
 

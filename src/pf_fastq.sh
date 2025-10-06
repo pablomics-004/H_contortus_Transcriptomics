@@ -2,11 +2,11 @@
 set -euo pipefail
 IFS=$'\n\t'
 
-conda activate sra-tools
+#conda activate sra-tools
 
 usage() {
     cat <<EOF
-Usage: ./src/pf_fastqc.sh -s <sra_paths> [-p|--paired] SRR21518936 SRR21518939 ...
+Usage: ./src/pf_fastq.sh -s <sra_paths> [-p|--paired] SRR21518936 SRR21518939 ...
     -s, --sra-dir   Output directory (subdirectories creation for each SRR)
     -c, --concat-dir    Directory for concatenation per sample
     -S, --sample-name   Sample name/label (Title)
@@ -15,7 +15,7 @@ Usage: ./src/pf_fastqc.sh -s <sra_paths> [-p|--paired] SRR21518936 SRR21518939 .
     -h, --help  Shows help to the user
 
 Example:
-    ./src/pf_fastqc.sh -s /data/sra -p SRR21518936 SRR21518939 ...
+    ./src/pf_fastq.sh -s /data/sra -p SRR21518936 SRR21518939 ...
 EOF
 }
 
@@ -49,7 +49,11 @@ done
 
 OUT_PREFIX="${OUT_PREFIX:-${SAMPLE_NAME}}"
 MANIFEST="${MANIFEST:-${SRA_DIR%/}/manifest_runs.tsv}"
-LAYOUT=$($PAIRED && echo "PAIRED" || echo "SINGLE")
+if [[ "${PAIRED}" == "true" ]]; then
+  LAYOUT="PAIRED"
+else
+  LAYOUT="SINGLE"
+fi
 
 mkdir -p "${SRA_DIR}" "${CONCAT_DIR}"
 
@@ -97,9 +101,7 @@ for SRR in "$@"; do
 
     # Validating output files
     have_fastq "${run_dir}" "${SRR}" "${PAIRED}" || { echo "  - [WARN] FASTQ inválidos: ${SRR}" >&2; exit 1; }
-  else
-    echo "  - FASTQ presentes y válidos. Saltando."
-  fi
+
     # Final paths
     r1="${run_dir}/${SRR}_1.fastq.gz"
     r2=""
@@ -113,4 +115,4 @@ done
 
 echo "[DONE] Download and conversion completed."
 
-conda deactivate
+#conda deactivate
