@@ -8,12 +8,12 @@ Date: 29/08/2025
 
 ___
 ## 📌 Project Description
-This project aims to perform the *transcriptome assembly and analysis* of Haemonchus contortus, a gastrointestinal parasite of veterinary importance.  
+This project aims to perform the *transcriptional analysis* of Haemonchus contortus, a gastrointestinal parasite of veterinary importance.  
 The goal is to compare *ivermectin-susceptible (IVM-S)* and *ivermectin-resistant (IVM-R)* strains to identify differences in gene expression associated with drug resistance.
 ___
 
 ## 🎯 Objectives
-- Assemble and assess the quality of the H. contortus transcriptome.  
+
 - Compare gene expression profiles between IVM-S and IVM-R strains.  
 - Identify differentially expressed genes related to drug resistance.  
 - Generate reproducible resources for downstream analyses.
@@ -52,17 +52,15 @@ ___
 1. Data source identification (RNA-seq Illumina data from IVM-S and IVM-R strains).  
 2. Download and preparation of raw sequencing data.  
 3. Quality control and trimming of raw reads (FastQC, Trimmomatic).  
-4. De novo transcriptome assembly (Trinity).  
-5. Mapping and quantification of transcripts (HISAT2, Salmon/Kallisto).  
-6. Differential expression analysis (DESeq2, EdgeR).  
-7. Functional annotation (BLAST, InterProScan, GO/KEGG).  
-8. Integration and interpretation of results.  
+4. Mapping and quantification of transcripts (HISAT2, Salmon/Kallisto).  
+5. Differential expression analysis (DESeq2, EdgeR).  
+6. Functional annotation (BLAST, InterProScan, GO/KEGG).  
+7. Integration and interpretation of results.  
 
 ___ 
 
 ## Expected Results
-
-- A high-quality transcriptome assembly of *H. contortus* (IVM-S and IVM-R).  
+ 
 - Lists of differentially expressed genes between susceptible and resistant isolates.  
 - Functional insights into molecular pathways associated with ivermectin resistance.  
 - Reproducible pipelines and scripts deposited in GitHub.  
@@ -73,7 +71,7 @@ ___
 ## Requirements Specification
 
 **Functional Requirements**  
-- The pipeline must assemble transcriptome data from raw RNA-seq reads.  
+
 - It must quantify transcript expression and perform differential expression analysis.  
 - It must annotate genes and provide biological context for differentially expressed transcripts.  
 - It must generate reproducible scripts for all steps of the workflow.  
@@ -95,11 +93,10 @@ Main Workflow (Transcriptome_Analysis):
 Input: Raw RNA-seq reads (IVM-S, IVM-R)
 Step 1: Quality_Control(reads)
 Step 2: Trim_Reads(reads)
-Step 3: Assemble_Transcriptome(trimmed_reads)
-Step 4: Map_and_Quantify(assembly, reads)
-Step 5: Differential_Expression(quant_data)
-Step 6: Functional_Annotation(diff_exp_genes)
-Step 7: Generate_Reports(results)
+Step 3: Map_and_Quantify(assembly, reads)
+Step 4: Differential_Expression(quant_data)
+Step 5: Functional_Annotation(diff_exp_genes)
+Step 6: Generate_Reports(results)
 Output: Expression profiles, annotation, reproducible scripts
 
 **Use Case: Transcriptome Analysis**
@@ -115,14 +112,13 @@ Output: Expression profiles, annotation, reproducible scripts
      +---------------+
 
 - **Actor**: Researcher  
-- **Description**: The researcher provides raw RNA-seq data for IVM-S and IVM-R strains. The pipeline validates and processes the data, performs assembly, quantification, differential expression, and annotation, and outputs interpretable results.  
+- **Description**: The researcher provides raw RNA-seq data for IVM-S and IVM-R strains. The pipeline validates and processes the data, performs quantification, differential expression, and annotation, and outputs interpretable results.  
 - **Main Flow**:  
   1. Input RNA-seq data.  
-  2. Quality check and preprocessing.  
-  3. Transcriptome assembly and quantification.  
-  4. Differential expression analysis.  
-  5. Functional annotation.  
-  6. Results reporting.  
+  2. Quality check and preprocessing.    
+  3. Differential expression analysis.  
+  4. Functional annotation.  
+  5. Results reporting.  
 
 - **Alternative Flows**:  
   - If input data is corrupted → System halts and reports error.  
