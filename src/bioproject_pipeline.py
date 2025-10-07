@@ -412,6 +412,7 @@ def main():
     parser.add_argument("--concat", action="store_true", help="Concatenate multiple FASTQs per sample")
     parser.add_argument("-r", "--reference", nargs='?', const="auto", metavar="ORGANISM", help="Download reference genome")
     parser.add_argument("--max-ref-results", type=int, default=5, help="Max reference genomes to show")
+    parser.add_argument("--use-bash",action="store_true",help="Use the external Bash script (prefet_concaten.sh) for SRA download & concatenation instead of Python")
     args = parser.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
@@ -440,7 +441,24 @@ def main():
         df_sra = get_sra_by_bioproject(uid, output_csv=os.path.join(sra_dir, "sra_by_biosample.csv"))
     if args.download_all or args.concat:
         if df_sra is not None and not df_sra.empty:
-            download_and_concat_sra_grouped(df_sra, sra_dir, concat_dir)
+            if args.use_bash:
+                # Prepare paths
+                csv_path = os.path.join(sra_dir, "sra_by_biosample.csv")
+                df_sra.to_csv(csv_path, index=False)
+
+                bash_script = "./prefet_concaten.sh"  # Adjust if path differs
+                logging.info(f"Running Bash SRA pipeline: {bash_script}")
+                try:
+                    subprocess.run(
+                        [bash_script, csv_path, sra_dir, concat_dir],
+                        check=True
+                    )
+                    logging.info("Bash SRA pipeline completed successfully.")
+                except subprocess.CalledProcessError as e:
+                    logging.error(f"Bash SRA pipeline failed: {e}")
+            else:
+                # Python fallback
+                download_and_concat_sra_grouped(df_sra, sra_dir, concat_dir)
     if args.reference:
         organism_to_search = args.reference
         if organism_to_search == "auto" and df_biosamples is not None:
