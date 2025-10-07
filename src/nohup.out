@@ -6,3 +6,7 @@ IndentationError: unindent does not match any outer indentation level
     try:
         ^
 IndentationError: unindent does not match any outer indentation level
+  File "/export/space3/users/yaelmont/2026-1/BIOPYTHON/H_contortus_Transcriptomics/src/bioproject_pipeline.py", line 150
+    try:
+        ^
+IndentationError: unindent does not match any outer indentation level

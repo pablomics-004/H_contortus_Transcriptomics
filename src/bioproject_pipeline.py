@@ -57,7 +57,6 @@ def check_format(filepath: str, expected_extension: str) -> bool:
     Validate that a file matches the expected format based on its extension.
     Logs a warning if mismatched.
     """
-
     if not filepath.endswith(expected_extension):
         logging.warning(f"Format mismatch: {filepath} (expected {expected_extension})")
         return False
@@ -105,7 +104,6 @@ def configure_entrez(email: str, api_key: str | None = None):
     logging.info(f"Entrez configured with email: {email}, API key: {'Provided' if api_key else 'None'}")
     print(f"Entrez configured with email: {email}")
 
-
 # ==================== BIOPROJECT INFO ==================== #
 def get_bioproject_info(bioproject_id: str) -> tuple[dict, str] | None:
     """
@@ -141,7 +139,7 @@ def get_bioproject_info(bioproject_id: str) -> tuple[dict, str] | None:
 
 # ==================== DATABASE LINKS ==================== #
 def get_associated_databases(uid: str):
-     """
+    """
     Retrieve a list of databases associated with a given BioProject UID.
 
     Returns:
@@ -320,7 +318,6 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
         logging.error(f"Error fetching reference genome: {e}")
 
 # ==================== SRA DOWNLOAD & CONCAT ==================== #
-
 def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir: str):
     """
     Download all SRA runs grouped by BioSample and concatenate FASTQ files per sample.
@@ -373,31 +370,6 @@ def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir:
 
 # ==================== MAIN ==================== #
 def main():
-    """
-    Main function to run the BioProject pipeline.
-
-    This function parses command-line arguments to query and download data from NCBI Entrez, including BioProject info, 
-    associated databases, BioSamples, SRA runs, and reference genomes. It also handles downloading and concatenating 
-    FASTQ files per BioSample.
-
-    Command-line arguments:
-        -p / --project: BioProject ID (required)
-        -e / --email: Email for NCBI Entrez (required)
-        -a / --api_key: Optional API key for NCBI Entrez
-        -o / --outdir: Output directory (default: "bioproject_data")
-        -i / --info: Show BioProject information
-        -d / --databases: Show associated databases
-        -b / --biosamples: Retrieve BioSamples information
-        -s / --samples: Generate SRA samples table
-        --download-all: Download all SRA FASTQ runs
-        --concat: Concatenate multiple FASTQ files per sample
-        -r / --reference: Download reference genome (optional)
-        --max-ref-results: Maximum reference genomes to retrieve (default: 5)
-
-    Returns:
-        None
-    """
-
     parser = argparse.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
     parser.add_argument("-p", "--project", required=True, help="BioProject ID (e.g., PRJNA877658)")
     parser.add_argument("-e", "--email", required=True, help="Email for NCBI Entrez")
@@ -411,7 +383,7 @@ def main():
     parser.add_argument("--concat", action="store_true", help="Concatenate multiple FASTQs per sample")
     parser.add_argument("-r", "--reference", nargs='?', const="auto", metavar="ORGANISM", help="Download reference genome")
     parser.add_argument("--max-ref-results", type=int, default=5, help="Max reference genomes to show")
-    parser.add_argument("--use-bash",action="store_true",help="Use the external Bash script (prefet_concaten.sh) for SRA download & concatenation instead of Python")
+    parser.add_argument("--use-bash", action="store_true", help="Use the external Bash script (prefet_concaten.sh) for SRA download & concatenation instead of Python")
     args = parser.parse_args()
 
     os.makedirs(args.outdir, exist_ok=True)
