@@ -1,3 +1,29 @@
+"""
+BioProject Entrez Pipeline
+--------------------------
+A modular pipeline for querying, downloading, and organizing data from NCBI BioProject,
+including BioSample metadata, SRA runs, and reference genomes.
+
+Author: Ashley Yael Montiel Vargas & Pablo Salazar Mendez
+Version: 1.0
+Date: 2025-10-07
+
+This script integrates multiple NCBI Entrez databases using Biopython, automating:
+ - Retrieval of BioProject metadata
+ - Identification of linked BioSamples and SRA accessions
+ - Download and concatenation of FASTQ files from SRA
+ - Retrieval of reference genome sequences and annotations
+
+Dependencies:
+ - Biopython (Entrez module)
+ - pandas
+ - subprocess, urllib, xml.etree.ElementTree
+ - NCBI SRA Toolkit (prefetch, fastq-dump)
+
+Example usage:
+    python3 bioproject_pipeline.py -p PRJNA877658 -e user@email.com -i -b -s --concat -r
+"""
+
 from pathlib import Path
 from Bio import Entrez
 from pandas import DataFrame
@@ -21,15 +47,29 @@ logging.basicConfig(
 
 # ==================== UTILITIES ==================== #
 def file_exists(filepath: str) -> bool:
+    """
+    Check whether a file exists and is non-empty.
+    """
     return os.path.exists(filepath) and os.path.getsize(filepath) > 0
 
 def check_format(filepath: str, expected_extension: str) -> bool:
+        """
+    Validate that a file matches the expected format based on its extension.
+    Logs a warning if mismatched.
+    """
+
     if not filepath.endswith(expected_extension):
         logging.warning(f"Format mismatch: {filepath} (expected {expected_extension})")
         return False
     return True
 
 def concat_gz(files: list[str], output_file: str):
+    """
+    Concatenate multiple compressed FASTQ files (.fastq.gz) into one output file.
+
+    Uses `zcat` and `gzip` via subprocess for efficiency with compressed data.
+    Skips concatenation if output file already exists.
+    """
     if not files:
         return
     if file_exists(output_file):
@@ -51,6 +91,13 @@ def concat_gz(files: list[str], output_file: str):
 
 # ==================== ENTIREZ CONFIG ==================== #
 def configure_entrez(email: str, api_key: str | None = None):
+     """
+    Configure Entrez API credentials.
+
+    Parameters:
+        email (str): User email (required by NCBI policy).
+        api_key (str, optional): NCBI API key for higher request limits.
+    """
     if not email:
         raise ValueError("Email is required for NCBI Entrez")
     Entrez.email = email
@@ -60,6 +107,12 @@ def configure_entrez(email: str, api_key: str | None = None):
 
 # ==================== BIOPROJECT INFO ==================== #
 def get_bioproject_info(bioproject_id: str) -> tuple[dict, str] | None:
+     """
+    Retrieve general metadata for a given BioProject accession.
+
+    Returns:
+        (dict, str): BioProject summary and internal UID.
+    """
     try:
         logging.info(f"Fetching BioProject: {bioproject_id}")
         with Entrez.esearch(db="bioproject", term=bioproject_id) as handle:
@@ -89,6 +142,12 @@ def get_bioproject_info(bioproject_id: str) -> tuple[dict, str] | None:
 
 # ==================== DATABASE LINKS ==================== #
 def get_associated_databases(uid: str):
+     """
+    Retrieve a list of databases associated with a given BioProject UID.
+
+    Returns:
+        list[str]: Sorted list of linked database names.
+    """
     try:
         with Entrez.elink(dbfrom="bioproject", id=uid) as handle:
             records = Entrez.read(handle)
@@ -108,6 +167,16 @@ def get_associated_databases(uid: str):
 
 # ==================== BIOSAMPLES ==================== #
 def fetch_biosamples(bioproject_uid: str, output: str = None):
+    """
+    Retrieve all BioSamples linked to a given BioProject UID.
+
+    Parameters:
+        bioproject_uid (str): Internal UID of the BioProject.
+        output (str, optional): CSV file path to save the results.
+
+    Returns:
+        pandas.DataFrame: BioSample metadata.
+    """
     try:
         with Entrez.elink(dbfrom='bioproject', id=bioproject_uid, db='biosample') as handle:
             records = Entrez.read(handle)
@@ -150,6 +219,16 @@ def fetch_biosamples(bioproject_uid: str, output: str = None):
 
 # ==================== SRA INFO ==================== #
 def get_sra_by_bioproject(bioproject_uid: str, output_csv: str):
+    """
+    Retrieve all SRA accessions (SRR) and their corresponding BioSamples from a given BioProject.
+
+    Parameters:
+        bioproject_uid (str): BioProject UID.
+        output_csv (str): Path to save the resulting CSV file.
+
+    Returns:
+        pandas.DataFrame: Mapping of BioSamples to SRR accessions and library layouts.
+    """
     sra_by_sample = defaultdict(list)
     layout_by_sample = {}
     with Entrez.elink(dbfrom="bioproject", db="sra", id=bioproject_uid) as handle:
@@ -193,6 +272,17 @@ def get_sra_by_bioproject(bioproject_uid: str, output_csv: str):
 
 # ==================== REFERENCE GENOME ==================== #
 def get_reference_genome_info(organism: str, outdir="reference_genome", max_results=5):
+    """
+    Retrieve the latest reference genome for a given organism from NCBI Assembly.
+
+    Parameters:
+        organism (str): Scientific name of the organism (e.g., "Homo sapiens").
+        outdir (str, optional): Directory to save the downloaded files. Default is "reference_genome".
+        max_results (int, optional): Maximum number of assemblies to retrieve. Default is 5.
+
+    Returns:
+        None
+    """
     os.makedirs(outdir, exist_ok=True)
     logging.info(f"Searching reference genome for: {organism}")
     try:
@@ -231,7 +321,19 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
         logging.error(f"Error fetching reference genome: {e}")
 
 # ==================== SRA DOWNLOAD & CONCAT ==================== #
+
 def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir: str):
+    """
+    Download all SRA runs grouped by BioSample and concatenate FASTQ files per sample.
+
+    Parameters:
+        sra_df (pandas.DataFrame): DataFrame containing BioSample names, SRR accessions, and library layouts.
+        sra_dir (str): Directory to store individual downloaded SRA runs.
+        concat_dir (str): Directory to store concatenated FASTQ files per sample.
+
+    Returns:
+        None
+    """
     os.makedirs(sra_dir, exist_ok=True)
     os.makedirs(concat_dir, exist_ok=True)
     grouped = defaultdict(list)
@@ -272,6 +374,31 @@ def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir:
 
 # ==================== MAIN ==================== #
 def main():
+    """
+    Main function to run the BioProject pipeline.
+
+    This function parses command-line arguments to query and download data from NCBI Entrez, including BioProject info, 
+    associated databases, BioSamples, SRA runs, and reference genomes. It also handles downloading and concatenating 
+    FASTQ files per BioSample.
+
+    Command-line arguments:
+        -p / --project: BioProject ID (required)
+        -e / --email: Email for NCBI Entrez (required)
+        -a / --api_key: Optional API key for NCBI Entrez
+        -o / --outdir: Output directory (default: "bioproject_data")
+        -i / --info: Show BioProject information
+        -d / --databases: Show associated databases
+        -b / --biosamples: Retrieve BioSamples information
+        -s / --samples: Generate SRA samples table
+        --download-all: Download all SRA FASTQ runs
+        --concat: Concatenate multiple FASTQ files per sample
+        -r / --reference: Download reference genome (optional)
+        --max-ref-results: Maximum reference genomes to retrieve (default: 5)
+
+    Returns:
+        None
+    """
+
     parser = argparse.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
     parser.add_argument("-p", "--project", required=True, help="BioProject ID (e.g., PRJNA877658)")
     parser.add_argument("-e", "--email", required=True, help="Email for NCBI Entrez")
