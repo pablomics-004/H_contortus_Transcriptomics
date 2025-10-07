@@ -91,7 +91,7 @@ def concat_gz(files: list[str], output_file: str):
 
 # ==================== ENTIREZ CONFIG ==================== #
 def configure_entrez(email: str, api_key: str | None = None):
-     """
+    """
     Configure Entrez API credentials.
 
     Parameters:
