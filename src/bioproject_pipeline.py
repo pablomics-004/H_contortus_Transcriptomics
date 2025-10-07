@@ -53,7 +53,7 @@ def file_exists(filepath: str) -> bool:
     return os.path.exists(filepath) and os.path.getsize(filepath) > 0
 
 def check_format(filepath: str, expected_extension: str) -> bool:
-        """
+    """
     Validate that a file matches the expected format based on its extension.
     Logs a warning if mismatched.
     """
