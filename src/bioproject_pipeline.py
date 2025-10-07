@@ -105,13 +105,12 @@ def configure_entrez(email: str, api_key: str | None = None):
     logging.info(f"Entrez configured with email: {email}, API key: {'Provided' if api_key else 'None'}")
     print(f"Entrez configured with email: {email}")
 
+
 # ==================== BIOPROJECT INFO ==================== #
 def get_bioproject_info(bioproject_id: str) -> tuple[dict, str] | None:
-     """
+    """
     Retrieve general metadata for a given BioProject accession.
-
-    Returns:
-        (dict, str): BioProject summary and internal UID.
+    Returns (dict, str): BioProject summary and internal UID.
     """
     try:
         logging.info(f"Fetching BioProject: {bioproject_id}")
