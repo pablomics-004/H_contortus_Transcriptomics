@@ -63,29 +63,52 @@ def check_format(filepath: str, expected_extension: str) -> bool:
 def __to_srr(x: str) -> str:
     m = re.search(r'(SRR\d+)', x)
     return m.group(1) if m else str(x)
+
+def concat_gz(files, output_file):
+    if file_exists(output_file):
+        print(f"{output_file} already exists. Skipping concatenation.")
+        return
+    with open(output_file, "wb") as fout:
+        p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
+        p1.stdout.close()
+        p2.communicate()
+    if check_format(output_file, ".fastq.gz"):
+        print(f"Concatenation completed: {output_file}")
+    else:
+        print(f"Warning: format mismatch after concatenation: {output_file}")
 # =================================================== #
 
 # ==================== BIOPROJECT ==================== #
-def get_bioproject_info(bioproject_id: str) -> dict | None:
+def get_bioproject_info(bioproject_id: str) -> tuple[dict, int] | None:
     try:
-        with Entrez.esearch(db="bioproject", term=f"{bioproject_id}[project_acc]") as handle:
+        with Entrez.esearch(db="bioproject", term=bioproject_id) as handle:
             record = Entrez.read(handle)
+
         if not record["IdList"]:
             raise ValueError(f"Couldn't find BioProject {bioproject_id}")
+
         uid = record["IdList"][0]
+
         with Entrez.esummary(db="bioproject", id=uid) as summary:
-            result = Entrez.read(summary)[0]
-        msg = (f"\n=== BioProject Information ===\n"
-               f"Title: {result.get('Project_Title', 'N/A')}\n"
-               f"Accession: {result.get('Project_Acc', 'N/A')}\n"
-               f"Description: {result.get('Project_Description', 'N/A')}\n"
-               f"Organism: {result.get('Organism_Name', 'N/A')}\n"
-               f"Submission Date: {result.get('Submission_Date', 'N/A')}\n"
-               f"Last Update: {result.get('Last_Update', 'N/A')}\n"
-               f"URL: https://www.ncbi.nlm.nih.gov/bioproject/{bioproject_id}\n")
+            results = Entrez.read(summary)
+        result = results["DocumentSummarySet"]["DocumentSummary"][0]
+
+        msg = (
+            f"\n=== BioProject Information ===\n"
+            f"Title: {result.get('Project_Title', 'N/A')}\n"
+            f"Accession: {result.get('Project_Acc', 'N/A')}\n"
+            f"Description: {result.get('Project_Description', 'N/A')}\n"
+            f"Organism: {result.get('Organism_Name', 'N/A')}\n"
+            f"Data Type: {result.get('Project_Data_Type', 'N/A')}\n"
+            f"Submitter: {result.get('Submitter_Organization', 'N/A')}\n"
+            f"Registration Date: {result.get('Registration_Date', 'N/A')}\n"
+            f"URL: https://www.ncbi.nlm.nih.gov/bioproject/{bioproject_id}\n"
+        )
         print(msg)
         logging.info(msg)
-        return result
+        return result, uid
+
     except Exception as e:
         logging.error(f"Error fetching BioProject info: {e}")
         print(f"Error fetching BioProject info: {e}")
@@ -93,25 +116,26 @@ def get_bioproject_info(bioproject_id: str) -> dict | None:
 # =================================================== #
 
 # ==================== DATABASE LINKS ==================== #
-def get_associated_databases(bioproject_id: str) -> list[str]:
+def get_associated_databases(uid: str) -> list[str] | None:
     try:
-        with Entrez.elink(dbfrom="bioproject", id=bioproject_id) as handle:
+        with Entrez.elink(dbfrom="bioproject", id = uid) as handle:
             records = Entrez.read(handle)
-        # linked_dbs = []
-        # for linkset in records:
-        #     if "LinkSetDb" in linkset:
-        #         for db in linkset["LinkSetDb"]:
-        #             linked_dbs.append(db["DbTo"])
-        # linked_dbs = sorted(set(linked_dbs))
+
         linked_dbs = sorted({
             db['DbTo']
             for linkset in records if 'LinkSetDb' in linkset
             for db in linkset['LinkSetDb']
         })
-        msg = "=== Associated Databases ===\n" + "\n".join(f"- {db}" for db in linked_dbs)
+
+        if linked_dbs:
+            msg = "=== Associated Databases ===\n" + "\n".join(f"- {db}" for db in linked_dbs)
+        else:
+                msg = f'No associated data fot {uid}'
+        
         print(msg)
         logging.info(msg)
         return linked_dbs
+
     except Exception as e:
         logging.error(f"Error retrieving associated databases: {e}")
         print(f"Error retrieving associated databases: {e}")
@@ -122,67 +146,50 @@ def get_associated_databases(bioproject_id: str) -> list[str]:
 def fetch_biosamples(bid: str) -> dict | None:
     try:
         with Entrez.esummary(db='biosample', id=bid) as handle:
-            summary = Entrez.read(handle)[0]
+            record = Entrez.read(handle)
         return {
-            'BioSample_ID' : summary.get('Id', dft := 'N/A'),
-            'Accession' : summary.get('Accession', dft),
-            'Organism' : summary.get('Organism', dft),
-            'Title' : summary.get('Title', dft),
-            'Attributes' : summary.get('Attributes', dft),
-            'SubmissionDate' : summary.get('SubmissionDate', dft)
+            'BioSample_ID': bid,
+            'Accession': summary.get('Accession', 'N/A'),
+            'Organism': summary.get('Organism', 'N/A'),
+            'Title': summary.get('Title', 'N/A'),
+            'Attributes': summary.get('Attributes', 'N/A'),
+            'SubmissionDate': summary.get('SubmissionDate', 'N/A')
         }
     except Exception as inner_e:
         logging.warning(f"Error retrieving BioSample {bid}: {inner_e}")
         return
-    finally:
-        time.sleep(0.34)
 # =================================================== #
 
 # ==================== BIOSAMPLES ==================== #
-def get_biosample_info(bioproject_id: str, output: str) -> pd.DataFrame | None:
+def get_biosample_info(uid: str, output: str) -> pd.DataFrame | None:
     try:
-        with Entrez.elink(dbfrom="bioproject", id=bioproject_id, db="biosample") as handle:
+        with Entrez.elink(dbfrom='bioproject', id=uid, db='biosample') as handle:
             records = Entrez.read(handle)
-        
-        # biosample_ids = []
-        # for linkset in records:
-        #     for db in linkset.get("LinkSetDb", []):
-        #         for link in db.get("Link", []):
-        #             biosample_ids.append(link["Id"])
         
         biosample_ids = [
             link['Id']
             for linkset in records
             for db in linkset.get('LinkSetDb', [])
-            for link in db.get('Link', []) if 'Id' in link
+            for link in db.get('Link', [])
+            if 'Id' in link
         ]
 
         if not biosample_ids:
             print("No BioSamples linked to this BioProject.")
             return
-                
-        # biosamples = []
-        # for bid in biosample_ids:
-        #     try:
-        #         with Entrez.esummary(db="biosample", id=bid) as handle:
-        #             summary = Entrez.read(handle)[0]
-        #         biosamples.append({
-        #             "BioSample_ID": summary.get("Id", "N/A"),
-        #             "Accession": summary.get("Accession", "N/A"),
-        #             "Organism": summary.get("Organism", "N/A"),
-        #             "Title": summary.get("Title", "N/A"),
-        #             "Attributes": summary.get("Attributes", "N/A"),
-        #             "SubmissionDate": summary.get("SubmissionDate", "N/A")
-        #         })
-        #         time.sleep(0.3)
-        #     except Exception as inner_e:
-        #         logging.warning(f"Error retrieving BioSample {bid}: {inner_e}")
         
-        df = pd.DataFrame(filter(None, map(fetch_biosamples, biosample_ids)))
-        df.to_csv(output, index=False)
-        print(f"Retrieved {len(df)} BioSamples. Saved to {output}")
-        logging.info(f"Retrieved {len(df)} BioSamples.")
-        return df
+        print(f"{len(biosample_ids)} BioSamples found. Downloading metadata...")
+
+        results = [data for bid in biosample_ids if (data := fetch_biosamples(bid))]
+
+        if results:
+            df = pd.DataFrame(results)
+            df.to_csv(output, index=False)
+            print(f"Retrieved {len(df)} BioSamples. Saved to {output}")
+            logging.info(f"Retrieved {len(df)} BioSamples.")
+            return
+        
+        print('No valid BioSamples were retrieved.')
     
     except Exception as e:
         logging.error(f"Error fetching BioSamples: {e}")
@@ -195,59 +202,55 @@ def fetch_sra(sra_id: str) -> dict | None:
     try:
         with Entrez.esummary(db="sra", id=sra_id) as handle:
             summary = Entrez.read(handle)[0]
-            return {
-                'RunAccession' : summary.get('Runs', dft:='N/A').split(',')[0],
-                'Title' : summary.get('Title', dft),
-                'Organism' : summary.get('Organism', dft),
-                'Instrument' : summary.get('Instrument', dft),
-                'LibraryLayout' : summary.get('LibraryLayout', dft),
-                'Bases' : summary.get('Bases', dft),
-                'Spots' : summary.get('Spots', dft)
-            }
+        
+        # Extracting the first run Accession within the runs list
+        runs_text = summary.get('Runs', dft:='N/A')
+        run_accession = runs_text.split(',')[0] if runs_text != dft else dft
+        return {
+            'RunAccession' : run_accession,
+            'Title' : summary.get('Title', dft),
+            'Organism' : summary.get('Organism', dft),
+            'Instrument' : summary.get('Instrument', dft),
+            'LibraryLayout' : summary.get('LibraryLayout', dft),
+            'Bases' : summary.get('Bases', dft),
+            'Spots' : summary.get('Spots', dft)
+        }
     except Exception as inner_e:
         logging.warning(f"Skipping SRA ID {sra_id}: {inner_e}")
         return
-    finally:
-        time.sleep(0.34)
 # =============================================== #
 
 # ==================== SRA ==================== #
 def get_sra_samples(bioproject_id: str, output: str) -> pd.DataFrame | None:
     try:
-        with Entrez.esearch(db="sra", term=f"{bioproject_id}[bioproject]", retmax=500) as handle:
-            record = Entrez.read(handle)
-        ids = record["IdList"]
-        print(f"Found {len(ids)} SRA entries linked to {bioproject_id}")
-        logging.info(f"Found {len(ids)} SRA entries linked to {bioproject_id}")
-        if not ids:
-            print("Warning: No SRA entries found.")
+        with Entrez.elink(dbfrom="bioproject", db="sra", id=bioproject_id) as handle:
+            records = Entrez.read(handle)
+        sra_ids = {
+            link['Id']
+            for linkset in records
+            for db in linkset.get('LinkSetDb', [])
+            for link in db.get('Link', [])
+            if 'Id' in link
+        }
+
+        if not sra_ids:
+            msg = f"No SRA entries linked to BioProject {bioproject_id}"
+            print(msg); logging.info(msg)
             return
         
-        # sample_data = []
-        # for sra_id in ids:
-        #     try:
-        #         with Entrez.esummary(db="sra", id=sra_id) as handle:
-        #             summary = Entrez.read(handle)[0]
-        #         sample_data.append({
-        #             "RunAccession": summary.get("Runs", "N/A").split(",")[0],
-        #             "Title": summary.get("Title", "N/A"),
-        #             "Organism": summary.get("Organism", "N/A"),
-        #             "Instrument": summary.get("Instrument", "N/A"),
-        #             "LibraryLayout": summary.get("LibraryLayout", "N/A"),
-        #             "Bases": summary.get("Bases", "N/A"),
-        #             "Spots": summary.get("Spots", "N/A")
-        #         })
-        #         time.sleep(0.3)
-        #     except Exception as inner_e:
-        #         logging.warning(f"Skipping SRA ID {sra_id}: {inner_e}")
+        msg = f"Found {len(sra_ids)} SRA entries linked to {bioproject_id}"
+        print(msg); logging.info(msg)
 
-        df = pd.DataFrame(filter(None, map(fetch_sra, ids)))
+        sample_data = [data for sra_id in sra_ids if (data := fetch_sra(sra_id))]
+
+        df = pd.DataFrame(sample_data)
         df.to_csv(output, index=False)
-        print(f"Saved SRA sample info to {output}")
-        logging.info(f"Saved {len(df)} SRA entries to {output}")
-        return df
+        msg = f"Saved SRA sample info to {output} ({len(df)} valid runs)"
+        print(msg); logging.info(msg)
+        return
+
     except Exception as e:
-        logging.error(f"Error fetching SRA samples: {e}")
+        logging.error(f"Error fetching SRA samples for {bioproject_id}: {e}")
         print(f"Error fetching SRA samples: {e}")
         return
 # =================================================== #
@@ -329,20 +332,6 @@ def download_and_concat_sra_grouped(sra_df: pd.DataFrame, sra_dir: str, concat_d
                 r1_files.append(r1_path)
             if r2_path and file_exists(r2_path) and check_format(r2_path, ".fastq.gz"):
                 r2_files.append(r2_path)
-
-        def concat_gz(files, output_file):
-            if file_exists(output_file):
-                print(f"{output_file} already exists. Skipping concatenation.")
-                return
-            with open(output_file, "wb") as fout:
-                p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
-                p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
-                p1.stdout.close()
-                p2.communicate()
-            if check_format(output_file, ".fastq.gz"):
-                print(f"Concatenation completed: {output_file}")
-            else:
-                print(f"Warning: format mismatch after concatenation: {output_file}")
 
         if r1_files:
             out_r1 = os.path.join(concat_dir, f"{sample_name}_1.fastq.gz")
