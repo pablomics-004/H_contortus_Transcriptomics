@@ -37,6 +37,23 @@ bioproject_data/
 └── bioproject_pipeline_YYYYMMDD_HHMMSS.log
 ```
 
+## PIPELINE
+
+```mermaid
+graph TD
+  A[main] --> B[configureEntrez]
+  B --> C[getBioProjectInfo]
+  C --> D[getAssociatedDatabases]
+  D --> E[fetchBioSamples]
+  E --> F[getSRAbyBioProject]
+  F --> G[downloadAndConcat]
+  G --> H[concatGz]
+  F --> I[getReferenceGenome]
+  H --> J[PipelineCompleted]
+  I --> J
+```
+
+
 ## KEY COMPONENTS
 
 1. Logging Configuration
