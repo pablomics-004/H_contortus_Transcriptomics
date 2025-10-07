@@ -12,7 +12,7 @@ Gene Ontology enrichment analysis revealed distinct expression profiles between 
 
 ***General objective***
 
-* To assemble and analyze the transcriptome of *Haemonchus contortus* strains with different ivermectin susceptibility profiles, in order to identify differentially expressed genes and provide insight into the molecular basis of anthelmintic resistance.
+* To  analyze the transcriptome of *Haemonchus contortus* strains with different ivermectin susceptibility profiles, in order to identify differentially expressed genes and provide insight into the molecular basis of anthelmintic resistance.
 
 *Specific objectives*
 
@@ -34,8 +34,7 @@ Reference genomes for *H. contortus* exist, such as the MHco3 (ISE) and NZ\_Hco\
 **Expected results**
 
 For the current class project, based on the workflow proposed, the following outcomes are expected:
-
-* **De novo transcriptome assembly** of *H. contortus* resistant and susceptible strains, yielding a high-quality dataset for downstream analyses.  
+  
 * **Differential expression profiling**, identifying sets of genes upregulated in resistant versus susceptible parasites.  
 * **Functional annotation** of candidate genes using BLAST, focusing on key families such as ABC transporters, ligand-gated ion channels, and detoxification enzymes (cytochrome P450s, glutathione-S-transferases).  
 * **Biological interpretation** of transcriptomic signatures, linking gene expression changes to resistance mechanisms (e.g., efflux activity, neuromuscular regulation, xenobiotic metabolism).  
