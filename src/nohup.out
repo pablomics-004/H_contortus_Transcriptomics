@@ -10,3 +10,119 @@ IndentationError: unindent does not match any outer indentation level
     try:
         ^
 IndentationError: unindent does not match any outer indentation level
+2025-10-07 03:34:01,050 - INFO - Entrez configured with email: yaelmont@lcg.unam.mx, API key: None
+2025-10-07 03:34:01,051 - INFO - Pipeline started for PRJNA877658
+2025-10-07 03:34:01,051 - INFO - Fetching BioProject: PRJNA877658
+2025-10-07 03:34:01,924 - INFO - 
+=== BioProject Information ===
+Title: Haemonchus contortus IVM Susceptible/Resistant Mexican Transcriptome, INIFAP-Mexico
+Accession: PRJNA877658
+Description: The trasnscriptome of two H. contortus mexican isolates (IVM Susceptible and Resistant) was assembled to analyze its potential use in the establishment of strategies of control of haemonchosis in small ruminants based on identifying and usage of genes associated with anthelmintic resistance.
+Data Type: Transcriptome or Gene expression
+Submitter: National Reserch Institute for Forestry, Agriculture and Livestock
+Registration Date: 2022/09/07 00:00
+URL: https://www.ncbi.nlm.nih.gov/bioproject/PRJNA877658
+
+2025-10-07 03:34:02,396 - INFO - === Associated Databases ===
+- pubmed
+2025-10-07 03:34:05,401 - INFO - BioSamples saved to ../test/bioproject_data/biosamples/biosamples.csv
+2025-10-07 03:34:05,818 - INFO - Found 6 SRA entries linked to BioProject 877658
+2025-10-07 03:34:08,268 - INFO - SRA info saved to ../test/bioproject_data/sra/sra_by_biosample.csv
+2025-10-07 03:34:08,269 - INFO - Prefetching SRR21518941 ...
+2025-10-07T09:34:08 prefetch.3.2.1: 1) Resolving 'SRR21518941'...
+2025-10-07T09:34:09 prefetch.3.2.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
+2025-10-07T09:34:10 prefetch.3.2.1: 1) Downloading 'SRR21518941'...
+2025-10-07T09:34:10 prefetch.3.2.1:  SRA Normalized Format file is being retrieved
+2025-10-07T09:34:10 prefetch.3.2.1:  Downloading via HTTPS...
+2025-10-07T09:51:30 prefetch.3.2.1:  HTTPS download succeed
+2025-10-07T09:51:33 prefetch.3.2.1:  'SRR21518941' is valid: 1658403766 bytes were streamed from 1658390075
+2025-10-07T09:51:33 prefetch.3.2.1: 1) 'SRR21518941' was downloaded successfully
+2025-10-07T09:51:33 prefetch.3.2.1: 1) Resolving 'SRR21518941's dependencies...
+2025-10-07T09:51:33 prefetch.3.2.1: 'SRR21518941' has 0 unresolved dependencies
+2025-10-07 03:51:33,837 - INFO - Converting SRR21518941 to FASTQ.gz ...
+Read 23668685 spots for SRR21518941
+Written 23668685 spots for SRR21518941
+2025-10-07 04:33:25,590 - INFO - Prefetching SRR21518939 ...
+2025-10-07T10:33:25 prefetch.3.2.1: 1) Resolving 'SRR21518939'...
+2025-10-07T10:33:27 prefetch.3.2.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
+2025-10-07T10:33:27 prefetch.3.2.1: 1) Downloading 'SRR21518939'...
+2025-10-07T10:33:27 prefetch.3.2.1:  SRA Normalized Format file is being retrieved
+2025-10-07T10:33:27 prefetch.3.2.1:  Downloading via HTTPS...
+2025-10-07T10:50:54 prefetch.3.2.1:  HTTPS download succeed
+2025-10-07T10:50:57 prefetch.3.2.1:  'SRR21518939' is valid: 2098178264 bytes were streamed from 2098171451
+2025-10-07T10:50:57 prefetch.3.2.1: 1) 'SRR21518939' was downloaded successfully
+2025-10-07T10:50:57 prefetch.3.2.1: 1) Resolving 'SRR21518939's dependencies...
+2025-10-07T10:50:57 prefetch.3.2.1: 'SRR21518939' has 0 unresolved dependencies
+2025-10-07 04:50:57,963 - INFO - Converting SRR21518939 to FASTQ.gz ...
+Read 30039191 spots for SRR21518939
+Written 30039191 spots for SRR21518939
+2025-10-07 05:41:54,336 - INFO - Prefetching SRR21518940 ...
+2025-10-07T11:41:54 prefetch.3.2.1: 1) Resolving 'SRR21518940'...
+2025-10-07T11:41:55 prefetch.3.2.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
+2025-10-07T11:41:56 prefetch.3.2.1: 1) Downloading 'SRR21518940'...
+2025-10-07T11:41:56 prefetch.3.2.1:  SRA Normalized Format file is being retrieved
+2025-10-07T11:41:56 prefetch.3.2.1:  Downloading via HTTPS...
+2025-10-07T12:08:26 prefetch.3.2.1:  HTTPS download succeed
+2025-10-07T12:08:31 prefetch.3.2.1:  'SRR21518940' is valid: 2941276628 bytes were streamed from 2941260347
+2025-10-07T12:08:31 prefetch.3.2.1: 1) 'SRR21518940' was downloaded successfully
+2025-10-07T12:08:31 prefetch.3.2.1: 1) Resolving 'SRR21518940's dependencies...
+2025-10-07T12:08:31 prefetch.3.2.1: 'SRR21518940' has 0 unresolved dependencies
+2025-10-07 06:08:31,549 - INFO - Converting SRR21518940 to FASTQ.gz ...
+Read 42189418 spots for SRR21518940
+Written 42189418 spots for SRR21518940
+2025-10-07 07:21:11,269 - INFO - Concatenating 3 files to ../test/bioproject_data/fastq_merged/SRS15071903_1.fastq.gz
+2025-10-07 07:58:19,283 - INFO - Concatenation completed: ../test/bioproject_data/fastq_merged/SRS15071903_1.fastq.gz
+2025-10-07 07:58:19,283 - INFO - Concatenating 3 files to ../test/bioproject_data/fastq_merged/SRS15071903_2.fastq.gz
+2025-10-07 08:36:16,052 - INFO - Concatenation completed: ../test/bioproject_data/fastq_merged/SRS15071903_2.fastq.gz
+2025-10-07 08:36:16,052 - INFO - Sample SRS15071903 processed successfully.
+2025-10-07 08:36:16,052 - INFO - Prefetching SRR21518938 ...
+2025-10-07T14:36:16 prefetch.3.2.1: 1) Resolving 'SRR21518938'...
+2025-10-07T14:36:17 prefetch.3.2.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
+2025-10-07T14:36:18 prefetch.3.2.1: 1) Downloading 'SRR21518938'...
+2025-10-07T14:36:18 prefetch.3.2.1:  SRA Normalized Format file is being retrieved
+2025-10-07T14:36:18 prefetch.3.2.1:  Downloading via HTTPS...
+2025-10-07T14:51:42 prefetch.3.2.1:  HTTPS download succeed
+2025-10-07T14:51:45 prefetch.3.2.1:  'SRR21518938' is valid: 1709457787 bytes were streamed from 1709444647
+2025-10-07T14:51:45 prefetch.3.2.1: 1) 'SRR21518938' was downloaded successfully
+2025-10-07T14:51:45 prefetch.3.2.1: 1) Resolving 'SRR21518938's dependencies...
+2025-10-07T14:51:45 prefetch.3.2.1: 'SRR21518938' has 0 unresolved dependencies
+2025-10-07 08:51:45,608 - INFO - Converting SRR21518938 to FASTQ.gz ...
+Read 24247796 spots for SRR21518938
+Written 24247796 spots for SRR21518938
+2025-10-07 09:34:11,321 - INFO - Prefetching SRR21518936 ...
+2025-10-07T15:34:11 prefetch.3.2.1: 1) Resolving 'SRR21518936'...
+2025-10-07T15:34:12 prefetch.3.2.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
+2025-10-07T15:34:13 prefetch.3.2.1: 1) Downloading 'SRR21518936'...
+2025-10-07T15:34:13 prefetch.3.2.1:  SRA Normalized Format file is being retrieved
+2025-10-07T15:34:13 prefetch.3.2.1:  Downloading via HTTPS...
+2025-10-07T15:52:17 prefetch.3.2.1:  HTTPS download succeed
+2025-10-07T15:52:21 prefetch.3.2.1:  'SRR21518936' is valid: 2035123673 bytes were streamed from 2035109435
+2025-10-07T15:52:21 prefetch.3.2.1: 1) 'SRR21518936' was downloaded successfully
+2025-10-07T15:52:21 prefetch.3.2.1: 1) Resolving 'SRR21518936's dependencies...
+2025-10-07T15:52:21 prefetch.3.2.1: 'SRR21518936' has 0 unresolved dependencies
+2025-10-07 09:52:21,165 - INFO - Converting SRR21518936 to FASTQ.gz ...
+Read 28931660 spots for SRR21518936
+Written 28931660 spots for SRR21518936
+2025-10-07 10:41:33,016 - INFO - Prefetching SRR21518937 ...
+2025-10-07T16:41:33 prefetch.3.2.1: 1) Resolving 'SRR21518937'...
+2025-10-07T16:41:34 prefetch.3.2.1: Current preference is set to retrieve SRA Normalized Format files with full base quality scores
+2025-10-07T16:41:34 prefetch.3.2.1: 1) Downloading 'SRR21518937'...
+2025-10-07T16:41:34 prefetch.3.2.1:  SRA Normalized Format file is being retrieved
+2025-10-07T16:41:34 prefetch.3.2.1:  Downloading via HTTPS...
+2025-10-07T17:04:32 prefetch.3.2.1:  HTTPS download succeed
+2025-10-07T17:04:35 prefetch.3.2.1:  'SRR21518937' is valid: 1752832731 bytes were streamed from 1752817211
+2025-10-07T17:04:35 prefetch.3.2.1: 1) 'SRR21518937' was downloaded successfully
+2025-10-07T17:04:35 prefetch.3.2.1: 1) Resolving 'SRR21518937's dependencies...
+2025-10-07T17:04:35 prefetch.3.2.1: 'SRR21518937' has 0 unresolved dependencies
+2025-10-07 11:04:35,781 - INFO - Converting SRR21518937 to FASTQ.gz ...
+Read 25067258 spots for SRR21518937
+Written 25067258 spots for SRR21518937
+2025-10-07 11:49:24,454 - INFO - Concatenating 3 files to ../test/bioproject_data/fastq_merged/SRS15071904_1.fastq.gz
+2025-10-07 12:19:19,783 - INFO - Concatenation completed: ../test/bioproject_data/fastq_merged/SRS15071904_1.fastq.gz
+2025-10-07 12:19:19,784 - INFO - Concatenating 3 files to ../test/bioproject_data/fastq_merged/SRS15071904_2.fastq.gz
+2025-10-07 12:50:27,264 - INFO - Concatenation completed: ../test/bioproject_data/fastq_merged/SRS15071904_2.fastq.gz
+2025-10-07 12:50:27,265 - INFO - Sample SRS15071904 processed successfully.
+2025-10-07 12:50:27,265 - INFO - Pipeline execution completed successfully.
+Entrez configured with email: yaelmont@lcg.unam.mx
+
+Pipeline completed! Log file: bioproject_pipeline_20251007_033401.log
