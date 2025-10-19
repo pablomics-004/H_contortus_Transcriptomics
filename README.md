@@ -1,6 +1,8 @@
-# Transcriptome Assembly and Analysis of Haemonchus contortus (IVM-S/IVM-R)
-
+# Comparative transcriptomics of Haemonchus contortus: ivermectin susceptibility and resistance (IVM-S/IVM-R)
 Date: 29/08/2025
+
+This repository contains the bioinformatics pipeline and transcriptomic analysis of Haemonchus contortus, focusing on the molecular basis of ivermectin resistance.
+The project compares ivermectin-susceptible (IVM-S) and ivermectin-resistant (IVM-R) strains through RNA-seq differential expression analysis. This project reproduces and extends the analysis from Reyes-Guerrero _et.al_ (2023).
 
 **Participants**:  
 - Pablo Salazar-Mendez <pablosm@lcg.unam.mz>
@@ -8,8 +10,10 @@ Date: 29/08/2025
 
 ___
 ## 📌 Project Description
-This project aims to perform the *transcriptional analysis* of Haemonchus contortus, a gastrointestinal parasite of veterinary importance.  
-The goal is to compare *ivermectin-susceptible (IVM-S)* and *ivermectin-resistant (IVM-R)* strains to identify differences in gene expression associated with drug resistance.
+This project performs a **comparative transcriptomic analysis of Haemonchus contortus**, a hematophagous gastrointestinal nematode that causes severe economic losses in livestock.
+The study focuses on comparing **ivermectin-susceptible (IVM-S)** and **ivermectin-resistant (IVM-R)** strains to identify **differentially expressed genes (DEGs)** that may underlie anthelmintic resistance mechanisms. Understanding these molecular signatures is crucial for improving parasite control strategies and delaying the spread of drug resistance in field populations.
+
+Ultimately, this project aims to provide a **reproducible computational framework for transcriptomic studies** , enabling future research on drug resistance, gene regulation, and parasite adaptation mechanisms.
 ___
 
 ## 🎯 Objectives
@@ -51,8 +55,8 @@ ___
 **Steps**  
 1. Data source identification (RNA-seq Illumina data from IVM-S and IVM-R strains).  
 2. Download and preparation of raw sequencing data.  
-3. Quality control and trimming of raw reads (FastQC, Trimmomatic).  
-4. Mapping and quantification of transcripts (HISAT2, Salmon/Kallisto).  
+3. Quality control and trimming of raw reads (FastQC, Trimmomatic, Cutadpat).  
+4. Mapping and quantification of transcripts (HISAT2, Salmon/Kallisto, BWA).  
 5. Differential expression analysis (DESeq2, EdgeR).  
 6. Functional annotation (BLAST, InterProScan, GO/KEGG).  
 7. Integration and interpretation of results.  
@@ -127,6 +131,12 @@ Output: Expression profiles, annotation, reproducible scripts
 
 ___
 
+ ## ⚙️ Installation and Usage
+
+Instructions for environment setup and execution will be provided as the project develops.
+Due to the large file sizes of RNA-seq datasets (>2 GB), raw data are not stored directly in this repository but are accessible via NCBI.
+___
+
 ## 📂 Repository Structure
 
 ```
@@ -141,3 +151,30 @@ ___
 └── README.md   # Project description and instructions
 ```
 ___
+## 🧾 License
+
+This project is distributed under the MIT License.
+See the LICENSE file for details.
+___
+
+## 🧩 Citation
+
+If you use this work in your research, please cite:
+
+Salazar-Mendez P, Montiel-Vargas AY. (2025). Comparative transcriptomics of Haemonchus contortus: ivermectin susceptibility and resistance (IVM-S/IVM-R) . [GitHub Repository]. https://github.com/pablomics-004/haemonchus_transcriptome_analysis
+___
+
+## 📬 Contact
+
+For questions, suggestions, or issues, please open an Issue in this repository or contact:
+
+Pablo Salazar-Mendez — <pablosm@lcg.unam.mx>
+
+Ashley Yael Montiel-Vargas — <yaelmont@lcg.unam.mx>
+
+___ 
+
+## 📚 References
+
+Reyes-Guerrero, D. E., Jiménez-Jacinto, V., Alonso-Morales, R. A., Alonso-Díaz, M. Á., Maza-Lopez, J., Camas-Pereyra, R., Olmedo-Juárez, A., Higuera-Piedrahita, R. I., & López-Arellano, M. E. (2023). Assembly and Analysis of Haemonchus contortus Transcriptome as a Tool for the Knowledge of Ivermectin Resistance Mechanisms. Pathogens, 12(3), 499. https://doi.org/10.3390/pathogens12030499 
+
