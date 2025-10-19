@@ -41,3 +41,7 @@ For the current class project, based on the workflow proposed, the following out
 * Contribution to the identification of **molecular markers** for diagnosing resistance and potential **targets for novel control strategies**, such as vaccine candidates or drugs designed to overcome efflux-mediated resistance.
 
 By generating and analyzing transcriptomic data, the project will help deepen our understanding of ivermectin resistance in *H. contortus* and provide valuable information for designing sustainable parasite control strategies in livestock production systems.
+
+
+**References** 
+Reyes-Guerrero, D. E., Jiménez-Jacinto, V., Alonso-Morales, R. A., Alonso-Díaz, M. Á., Maza-Lopez, J., Camas-Pereyra, R., Olmedo-Juárez, A., Higuera-Piedrahita, R. I., & López-Arellano, M. E. (2023). Assembly and Analysis of Haemonchus contortus Transcriptome as a Tool for the Knowledge of Ivermectin Resistance Mechanisms. Pathogens, 12(3), 499. https://doi.org/10.3390/pathogens12030499 
