@@ -34,7 +34,7 @@ from collections import defaultdict
 import urllib.request
 from datetime import datetime
 import xml.etree.ElementTree as ET
-import argparse
+import argparse as ap
 
 # ==================== LOGGING CONFIGURATION ==================== #
 log_filename = f"bioproject_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -368,9 +368,8 @@ def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir:
             concat_gz(r2_files, os.path.join(concat_dir, f"{safe_sample_name}_2.fastq.gz"))
         logging.info(f"Sample {sample_name} processed successfully.")
 
-# ==================== MAIN ==================== #
-def main():
-    parser = argparse.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
+def my_parser() -> ap.Namespace:
+    parser = ap.ArgumentParser(description="Pipeline to query and download BioProject data using Entrez.")
     parser.add_argument("-p", "--project", required=True, help="BioProject ID (e.g., PRJNA877658)")
     parser.add_argument("-e", "--email", required=True, help="Email for NCBI Entrez")
     parser.add_argument("-a", "--api_key", help="API key for NCBI Entrez (optional)")
@@ -384,7 +383,13 @@ def main():
     parser.add_argument("-r", "--reference", nargs='?', const="auto", metavar="ORGANISM", help="Download reference genome")
     parser.add_argument("--max-ref-results", type=int, default=5, help="Max reference genomes to show")
     parser.add_argument("--use-bash", action="store_true", help="Use the external Bash script (prefet_concaten.sh) for SRA download & concatenation instead of Python")
-    args = parser.parse_args()
+    
+    return parser.parse_args()
+
+# ==================== MAIN ==================== #
+def main():
+    
+    args = my_parser()
 
     os.makedirs(args.outdir, exist_ok=True)
     sra_dir = os.path.join(args.outdir, "sra")
