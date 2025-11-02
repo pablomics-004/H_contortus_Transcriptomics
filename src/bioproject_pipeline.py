@@ -5,7 +5,7 @@ A modular pipeline for querying, downloading, and organizing data from NCBI BioP
 including BioSample metadata, SRA runs, and reference genomes.
 
 Author: Ashley Yael Montiel Vargas & Pablo Salazar Mendez
-Version: 1.0
+Version: 2.1.0
 Date: 2025-10-07
 
 This script integrates multiple NCBI Entrez databases using Biopython, automating:
@@ -71,20 +71,36 @@ def concat_gz(files: list[str], output_file: str):
     """
     if not files:
         return
+
     if file_exists(output_file):
         logging.info(f"{output_file} already exists. Skipping concatenation.")
         return
-    logging.info(f"Concatenating {len(files)} files to {output_file}")
+
+    # logging.info(f"Concatenating {len(files)} files to {output_file}")
+
+    pyscript_path = os.path.dirname(os.path.abspath(__file__)) # Path to python script
+    bash_script = os.path.join(pyscript_path, 'concat_gz.sh') # Path to bash script
+
     try:
-        with open(output_file, "wb") as fout:
-            p1 = subprocess.Popen(["zcat"] + files, stdout=subprocess.PIPE)
-            p2 = subprocess.Popen(["gzip"], stdin=p1.stdout, stdout=fout)
-            p1.stdout.close()
-            p2.communicate()
-        if check_format(output_file, ".fastq.gz"):
-            logging.info(f"Concatenation completed: {output_file}")
-        else:
-            logging.warning(f"Format mismatch after concatenation: {output_file}")
+        with subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        ) as process:
+            for line in process.stdout:
+                logging.info(line.strip())
+            for line in process.stderr:
+                logging.error(line.strip())
+
+            process.wait()
+            
+            if process.returncode != 0:
+                logging.warning(f"Concatenation script exited with code {process.returncode}")
+            else:
+                logging.info(f"Concatenation completed successfully: {output_file}")
+
     except Exception as e:
         logging.error(f"Error during concatenation: {e}")
 
@@ -215,7 +231,7 @@ def fetch_biosamples(bioproject_uid: str, output: str = None):
         return None
 
 # ==================== SRA INFO ==================== #
-def get_sra_by_bioproject(bioproject_uid: str, output_csv: str):
+def get_sra_by_bioproject(bioproject_uid: str, output_csv: str) -> pd.DataFrame:
     """
     Retrieve all SRA accessions (SRR) and their corresponding BioSamples from a given BioProject.
 
@@ -243,19 +259,25 @@ def get_sra_by_bioproject(bioproject_uid: str, output_csv: str):
                 xml_data = handle.read()
             root = ET.fromstring(xml_data)
             for exp_pkg in root.findall(".//EXPERIMENT_PACKAGE"):
+
                 sample_node = exp_pkg.find(".//SAMPLE")
                 biosample = sample_node.get("accession", sample_node.get("alias", "UnknownSample")) if sample_node is not None else "UnknownSample"
                 layout_node = exp_pkg.find(".//LIBRARY_LAYOUT")
+
                 if layout_node is not None:
                     layout = "PAIRED" if layout_node.find("PAIRED") is not None else "SINGLE"
+
                 else:
                     layout = "PAIRED"
+
                 layout_by_sample[biosample] = layout
+
                 for run in exp_pkg.findall(".//RUN"):
                     srr = run.get("accession")
                     if srr:
                         sra_by_sample[biosample].append(srr)
                         sra_by_sample[biosample] = list(dict.fromkeys(sra_by_sample[biosample]))
+
         except Exception as e:
             logging.warning(f"Error fetching SRA {sra_id}: {e}")
 
@@ -265,6 +287,7 @@ def get_sra_by_bioproject(bioproject_uid: str, output_csv: str):
     ])
     df.to_csv(output_csv, index=False)
     logging.info(f"SRA info saved to {output_csv}")
+
     return df
 
 # ==================== REFERENCE GENOME ==================== #
@@ -288,7 +311,9 @@ def get_reference_genome_info(organism: str, outdir="reference_genome", max_resu
         if not record["IdList"]:
             logging.warning(f"No reference genome found for {organism}")
             return
+
         for asm_id in record["IdList"]:
+
             with Entrez.esummary(db="assembly", id=asm_id) as summary:
                 doc = Entrez.read(summary)
                 info_list = doc.get("DocumentSummarySet", {}).get("DocumentSummary", [])
@@ -330,10 +355,13 @@ def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir:
     Returns:
         None
     """
-    os.makedirs(sra_dir, exist_ok=True)
-    os.makedirs(concat_dir, exist_ok=True)
+    os.makedirs(sra_dir, exist_ok=True); os.makedirs(concat_dir, exist_ok=True)
     grouped = defaultdict(list)
     layout_map = {}
+
+    pyscript_path = os.path.dirname(os.path.abspath(__file__)) # Path to python script
+    bash_script = os.path.join(pyscript_path, 'run_prefetch.sh') # Path to bash script
+
     for _, row in sra_df.iterrows():
         sample_name = row['BioSample']
         runs = row['SRR_List'].split(",")
@@ -342,30 +370,39 @@ def download_and_concat_sra_grouped(sra_df: DataFrame, sra_dir: str, concat_dir:
 
     for sample_name, runs in grouped.items():
         r1_files, r2_files = [], []
+
         for run in runs:
-            run_dir = os.path.join(sra_dir, run)
-            os.makedirs(run_dir, exist_ok=True)
+
+            run_dir = os.path.join(sra_dir, run); os.makedirs(run_dir, exist_ok=True)
+            paired_end = 1 if layout_map[sample_name] == "PAIRED" else 0
+
             r1_path = os.path.join(run_dir, f"{run}_1.fastq.gz")
-            r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if layout_map[sample_name] == "PAIRED" else None
+            r2_path = os.path.join(run_dir, f"{run}_2.fastq.gz") if paired_end else None
+
             if not file_exists(r1_path) or (r2_path and not file_exists(r2_path)):
-                logging.info(f"Prefetching {run} ...")
+
                 try:
-                    subprocess.run(["prefetch", "--output-directory", sra_dir, run], check=True)
                     logging.info(f"Converting {run} to FASTQ.gz ...")
-                    subprocess.run(["fastq-dump", run, "-O", run_dir, "--split-files", "--gzip"], check=True)
+                    args = [run, run_dir, paired_end]
+                    subprocess.run([bash_script, *args], check=True)
+
                 except subprocess.CalledProcessError as e:
                     logging.error(f"Error downloading {run}: {e}")
                     continue
+
             if file_exists(r1_path):
                 r1_files.append(r1_path)
             if r2_path and file_exists(r2_path):
                 r2_files.append(r2_path)
 
         safe_sample_name = "".join(c if c.isalnum() else "_" for c in sample_name)
+
         if r1_files:
             concat_gz(r1_files, os.path.join(concat_dir, f"{safe_sample_name}_1.fastq.gz"))
-        if layout_map[sample_name] == "PAIRED" and r2_files:
+
+        if paired_end and r2_files:
             concat_gz(r2_files, os.path.join(concat_dir, f"{safe_sample_name}_2.fastq.gz"))
+
         logging.info(f"Sample {sample_name} processed successfully.")
 
 def my_parser() -> ap.Namespace:
@@ -382,8 +419,7 @@ def my_parser() -> ap.Namespace:
     parser.add_argument("--concat", action="store_true", help="Concatenate multiple FASTQs per sample")
     parser.add_argument("-r", "--reference", nargs='?', const="auto", metavar="ORGANISM", help="Download reference genome")
     parser.add_argument("--max-ref-results", type=int, default=5, help="Max reference genomes to show")
-    parser.add_argument("--use-bash", action="store_true", help="Use the external Bash script (prefet_concaten.sh) for SRA download & concatenation instead of Python")
-    
+
     return parser.parse_args()
 
 # ==================== MAIN ==================== #
@@ -417,24 +453,7 @@ def main():
         df_sra = get_sra_by_bioproject(uid, output_csv=os.path.join(sra_dir, "sra_by_biosample.csv"))
     if args.download_all or args.concat:
         if df_sra is not None and not df_sra.empty:
-            if args.use_bash:
-                # Prepare paths
-                csv_path = os.path.join(sra_dir, "sra_by_biosample.csv")
-                df_sra.to_csv(csv_path, index=False)
-
-                bash_script = "./prefet_concaten.sh"  # Adjust if path differs
-                logging.info(f"Running Bash SRA pipeline: {bash_script}")
-                try:
-                    subprocess.run(
-                        [bash_script, csv_path, sra_dir, concat_dir],
-                        check=True
-                    )
-                    logging.info("Bash SRA pipeline completed successfully.")
-                except subprocess.CalledProcessError as e:
-                    logging.error(f"Bash SRA pipeline failed: {e}")
-            else:
-                # Python fallback
-                download_and_concat_sra_grouped(df_sra, sra_dir, concat_dir)
+            download_and_concat_sra_grouped(df_sra, sra_dir, concat_dir)
     if args.reference:
         organism_to_search = args.reference
         if organism_to_search == "auto" and df_biosamples is not None:
