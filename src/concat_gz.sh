@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-outfile="${1:?Required outfile name}"; shift
+thr_pz="${1:-6}"
+outfile="${2:?Required outfile name}"
+shift 2
 
 if (( $# == 0 )); then
     echo "[ERROR] No input files provided to concatenate" >&2
     exit 1
 fi
 
-echo "[INFO] Concatenating ${#@} files into $outfile"
-
-zcat "$@" | pigz -p 6 -1 > "$outfile"
+echo "[BASH] Concatenating ${#@} files into $outfile"
+zcat "$@" | pigz -p "$thr_pz" -1 > "$outfile"

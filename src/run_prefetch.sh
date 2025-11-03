@@ -14,7 +14,7 @@ thr_pz="${5:-6}"
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || {
-    echo "[error] Required command '$1' not found in PATH" >&2
+    echo "[ERROR] Required command '$1' not found in PATH" >&2
     exit 127
   }
 }
@@ -53,20 +53,20 @@ fasterq-dump "$run" --threads $thr_fq --split-files --outdir "$run_dir"
 fq1="${run_dir}/${run}_1.fastq"
 fq2="${run_dir}/${run}_2.fastq"
 
-echo "[INFO] Checking FASTQ format for ${fq1}..."
+echo "[BASH] Checking FASTQ format for ${fq1}..."
 check_fastq_format "$fq1"
 
 if (( paired_end )); then
-    echo "[INFO] Checking FASTQ format for ${fq2}..."
+    echo "[BASH] Checking FASTQ format for ${fq2}..."
     check_fastq_format "$fq2"
 fi
 
-echo "[INFO] Compressing ${run}_1.fastq..."
+echo "[BASH] Compressing ${run}_1.fastq..."
 pigz -p $thr_pz -1 "${run_dir}/${run}_1.fastq"
 
 if (( paired_end )); then
-    echo "[INFO] Compressing ${run}_2.fastq..."
+    echo "[BASH] Compressing ${run}_2.fastq..."
     pigz -p $thr_pz -1 "${run_dir}/${run}_2.fastq"
 fi
 
-echo "[INFO] Completed successfully for $run"
+echo "[BASH] Completed successfully for $run"
