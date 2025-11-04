@@ -16,7 +16,7 @@ if [[ ! -f "${bwa_index_prefix}.bwt" ]]; then
 
     # Wait for index files (use wait_for_file on at least one; then check all)
     echo "Waiting for BWA index files..."
-    wait_for_file "${bwa_index_prefix}.bwt" 600 5
+    wait_for_file "${bwa_index_prefix}.bwt"
 else
     echo "[OK] BWA index already exists."
 fi
@@ -30,3 +30,4 @@ for index_file in "${index_files[@]}"; do
     fi
 done
 echo "[OK] All BWA index files ready"
+
