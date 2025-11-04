@@ -31,16 +31,26 @@ for sample in "${!samples[@]}"; do
     if [[ "$layout" == "PE" ]]; then
         r1="$DATADIR/${sample}_1.fastq.gz"
         r2="$DATADIR/${sample}_2.fastq.gz"
-        clean_r1="$TRIM_DIR/${sample}_clean_1.fastq.gz"
-        clean_r2="$TRIM_DIR/${sample}_clean_2.fastq.gz"
-        echo "[PE] $sample"
-        "$CUTADAPT" -q 20 -m 25 -o "$clean_r1" -p "$clean_r2" "$r1" "$r2" > "$TRIM_DIR/${sample}_cutadapt.log" 2>&1
+        out1="$TRIM_DIR/${sample}_clean_1.fastq.gz"
+        out2="$TRIM_DIR/${sample}_clean_2.fastq.gz"
+
+        echo "[PE] Processing $sample"
+        cutadapt -q 20 -m 25 -o "$out1" -p "$out2" "$r1" "$r2" > "$TRIM_DIR/${sample}_cutadapt.log" 2>&1
+
+        wait_for_file "$out1"
+        wait_for_file "$out2"
+
+        echo "✅ $sample PE trimming done"
     else
         r1="$DATADIR/${sample}.fastq.gz"
-        clean_se="$TRIM_DIR/${sample}_clean.fastq.gz"
-        echo "[SE] $sample"
-        "$CUTADAPT" -q 20 -m 25 -o "$clean_se" "$r1" > "$TRIM_DIR/${sample}_cutadapt.log" 2>&1
+        out="$TRIM_DIR/${sample}_clean.fastq.gz"
+
+        echo "[SE] Processing $sample"
+        cutadapt -q 20 -m 25 -o "$out" "$r1" > "$TRIM_DIR/${sample}_cutadapt.log" 2>&1
+
+        wait_for_file "$out"
+        echo "✅ $sample SE trimming done"
     fi
 done
 
-echo "[OK] Trimming completed"
+echo "[OK] All trimmed files verified"
