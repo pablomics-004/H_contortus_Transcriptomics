@@ -96,7 +96,10 @@ check_fastq_files() {
 # ----------------------------- #
 detect_pairs() {
     log "Detecting paired- and single-end samples..."
-    declare -gA PE_R1 PE_R2 SE
+    declare -gA PE_R1=()
+    declare -gA PE_R2=()
+    declare -gA SE=()
+
     for f in "$TRIM_DIR"/*.fastq "$TRIM_DIR"/*.fastq.gz; do
         [[ -f "$f" ]] || continue
         base=$(basename "$f")
