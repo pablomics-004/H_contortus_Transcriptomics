@@ -48,21 +48,51 @@ LOG_FILE="$OUTDIR/rna_cuantification.log"
 
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-# ----------------------------- #
-#  Logging helpers
-# ----------------------------- #
+# ============================== #
+# Logging helpers
+# ============================== #
+# -------------------------------------------------------------
+# log
+# -------------------------------------------------------------
+# Description:
+#   Print a timestamped message to stdout and log file.
+# Parameters:
+#   $* : Message to print
+# Output:
+#   Logged message
+
 log() {
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
 }
+
+# -------------------------------------------------------------
+# error_exit
+# -------------------------------------------------------------
+# Description:
+#   Print an error message to stderr and exit the script.
+# Parameters:
+#   $* : Error message
+# Output:
+#   Script exits with code 1
 
 error_exit() {
     echo -e "[ERROR] $*" >&2
     exit 1
 }
 
-# ----------------------------- #
-#  Validation functions
-# ----------------------------- #
+# ============================== #
+# Validation functions
+# ============================== #
+
+# -------------------------------------------------------------
+# check_inputs
+# -------------------------------------------------------------
+# Description:
+#   Validate input directories, transcriptome file, and number of cores.
+# Parameters:
+#   TRIM_DIR, TRANSCRIPTOME_FASTA, NCORES
+# Output:
+#   Calls error_exit if any validation fails
 
 check_inputs() {
     log "Validating inputs..."
@@ -70,6 +100,16 @@ check_inputs() {
     [[ -f "$TRANSCRIPTOME_FASTA" ]] || error_exit "Transcriptome FASTA not found: $TRANSCRIPTOME_FASTA"
     [[ "$NCORES" =~ ^[0-9]+$ ]] || error_exit "Invalid number of cores: $NCORES"
 }
+
+# -------------------------------------------------------------
+# check_executables
+# -------------------------------------------------------------
+# Description:
+#   Validate that the Salmon or Kallisto executable exists and is runnable.
+# Parameters:
+#   TOOL, SALMON_EXE, KALLISTO_EXE
+# Output:
+#   Calls error_exit if executable not found or invalid TOOL
 
 check_executables() {
     log "Checking required executables..."
@@ -82,6 +122,16 @@ check_executables() {
     fi
 }
 
+# -------------------------------------------------------------
+# check_fastq_files
+# -------------------------------------------------------------
+# Description:
+#   Verify that FASTQ files exist in the trimmed reads directory.
+# Parameters:
+#   TRIM_DIR
+# Output:
+#   Logs the number of files found, error_exit if none exist
+
 check_fastq_files() {
     log "Checking FASTQ files..."
     files=("$TRIM_DIR"/*.fastq "$TRIM_DIR"/*.fastq.gz)
@@ -91,9 +141,17 @@ check_fastq_files() {
     log "Found ${#files[@]} FASTQ files."
 }
 
-# ----------------------------- #
-#  Detect paired and single-end
-# ----------------------------- #
+# -------------------------------------------------------------
+# detect_pairs
+# -------------------------------------------------------------
+# Description:
+#   Detect paired-end and single-end samples.
+#   Populates global associative arrays PE_R1, PE_R2, SE.
+# Parameters:
+#   TRIM_DIR
+# Output:
+#   Global arrays with sample paths; logs counts
+
 detect_pairs() {
     log "Detecting paired- and single-end samples..."
     declare -gA PE_R1=()
@@ -127,32 +185,67 @@ detect_pairs() {
     log "Detected ${#PE_R1[@]} paired-end and ${#SE[@]} single-end samples."
 }
 
-# ----------------------------- #
-#  Index creation
-# ----------------------------- #
+# ============================== #
+# Index creation
+# ============================== #
+
+# -------------------------------------------------------------
+# build_index_salmon
+# -------------------------------------------------------------
+# Description:
+#   Builds Salmon index if missing.
+# Parameters:
+#   TRANSCRIPTOME_FASTA, OUTDIR
+# Output:
+#   Directory with Salmon index
+
 build_index_salmon() {
     SALMON_INDEX="$OUTDIR/salmon_index"
     if [[ ! -d "$SALMON_INDEX" ]]; then
         log "Building Salmon index..."
-        "$SALMON_EXE" index -t "$TRANSCRIPTOME_FASTA" -i "$SALMON_INDEX" -k 31
+        "$SALMON_EXE" index -t "$TRANSCRIPTOME_FASTA" -i "$SALMON_INDEX" -k 31 \
+            || error_exit "Failed to build Salmon index"
     else
         log "Salmon index already exists: $SALMON_INDEX"
     fi
 }
 
+# -------------------------------------------------------------
+# build_index_kallisto
+# -------------------------------------------------------------
+# Description:
+#   Builds Kallisto index if missing.
+# Parameters:
+#   TRANSCRIPTOME_FASTA, OUTDIR
+# Output:
+#   Kallisto index file
+
 build_index_kallisto() {
     KALLISTO_INDEX="$OUTDIR/transcriptome.idx"
     if [[ ! -f "$KALLISTO_INDEX" ]]; then
         log "Building Kallisto index..."
-        "$KALLISTO_EXE" index -i "$KALLISTO_INDEX" "$TRANSCRIPTOME_FASTA"
+        "$KALLISTO_EXE" index -i "$KALLISTO_INDEX" "$TRANSCRIPTOME_FASTA" \
+            || error_exit "Failed to build Kallisto index"
     else
         log "Kallisto index already exists: $KALLISTO_INDEX"
     fi
 }
 
-# ----------------------------- #
-#  Quantification
-# ----------------------------- #
+
+# ============================== #
+# Quantification
+# ============================== #
+
+# -------------------------------------------------------------
+# quantify_salmon
+# -------------------------------------------------------------
+# Description:
+#   Quantify all samples with Salmon.
+# Parameters:
+#   PE_R1, PE_R2, SE, SALMON_EXE, NCORES, OUTDIR
+# Output:
+#   Quantification folders for each sample
+
 quantify_salmon() {
     SALMON_INDEX="$OUTDIR/salmon_index"
     log "Running Salmon quantification..."
@@ -162,7 +255,7 @@ quantify_salmon() {
         log "[PE] Quantifying $s"
         "$SALMON_EXE" quant -i "$SALMON_INDEX" -l A \
             -1 "${PE_R1[$s]}" -2 "${PE_R2[$s]}" \
-            -p "$NCORES" -o "$out"
+            -p "$NCORES" -o "$out" || error_exit "Salmon quantification failed for sample $s"
     done
 
     for s in "${!SE[@]}"; do
@@ -170,9 +263,18 @@ quantify_salmon() {
         log "[SE] Quantifying $s"
         "$SALMON_EXE" quant -i "$SALMON_INDEX" -l A \
             -r "${SE[$s]}" \
-            -p "$NCORES" -o "$out"
+            -p "$NCORES" -o "$out" || error_exit "Salmon quantification failed for sample $s"
     done
 }
+# -------------------------------------------------------------
+# quantify_kallisto
+# -------------------------------------------------------------
+# Description:
+#   Quantify all samples with Kallisto.
+# Parameters:
+#   PE_R1, PE_R2, SE, KALLISTO_EXE, NCORES, OUTDIR
+# Output:
+#   Quantification folders for each sample
 
 quantify_kallisto() {
     KALLISTO_INDEX="$OUTDIR/transcriptome.idx"
@@ -182,48 +284,56 @@ quantify_kallisto() {
         out="$OUTDIR/$s"; mkdir -p "$out"
         log "[PE] Quantifying $s"
         "$KALLISTO_EXE" quant -i "$KALLISTO_INDEX" -o "$out" -t "$NCORES" \
-            "${PE_R1[$s]}" "${PE_R2[$s]}"
+            "${PE_R1[$s]}" "${PE_R2[$s]}" || error_exit "Kallisto quantification failed for sample $s"
     done
 
     for s in "${!SE[@]}"; do
         out="$OUTDIR/$s"; mkdir -p "$out"
         log "[SE] Quantifying $s"
         "$KALLISTO_EXE" quant -i "$KALLISTO_INDEX" -o "$out" -t "$NCORES" \
-            --single -l 200 -s 50 "${SE[$s]}"
+            --single -l 200 -s 50 "${SE[$s]}" || error_exit "Kallisto quantification failed for sample $s"
     done
 }
 
-generate_matrix() {
-    log "Generating count matrix..."
-    COUNT_MATRIX="$OUTDIR/counts_matrix_${TOOL}.tsv"
+# ============================== #
+# Generate count matrix
+# ============================== #
 
+# -------------------------------------------------------------
+# generate_matrix
+# -------------------------------------------------------------
+# Description:
+#   Merge all Salmon/Kallisto results into a single count matrix.
+# Parameters:
+#   TOOL, OUTDIR
+# Output:
+#   counts_matrix_${TOOL}.tsv
+
+log "Generating count matrix..."
+    COUNT_MATRIX="$OUTDIR/counts_matrix_${TOOL}.tsv"
     tmpdir=$(mktemp -d)
     samples=()
 
-    # Select correct file pattern
     pattern="quant.sf"
     [[ "$TOOL" == "kallisto" ]] && pattern="abundance.tsv"
 
-    # Extract sample names and headers
     for f in "$OUTDIR"/*/"$pattern"; do
         [[ -f "$f" ]] || continue
         sample=$(basename "$(dirname "$f")")
         samples+=("$sample")
-        # Column with counts: 5th in Salmon, 4th in Kallisto
         col=$([[ "$TOOL" == "salmon" ]] && echo 5 || echo 4)
-        awk -v c="$col" 'NR>1 {print $1"\t"$c}' "$f" > "$tmpdir/$sample.tsv"
+        awk -v c="$col" 'NR>1 {print $1"\t"$c}' "$f" > "$tmpdir/$sample.tsv" || error_exit "Failed to process $f"
     done
 
     [[ ${#samples[@]} -gt 0 ]] || error_exit "No quantification files found."
 
-    # Merge all TSVs by transcript_id
     cp "$tmpdir/${samples[0]}.tsv" "$tmpdir/merged.tsv"
     for i in $(seq 1 $((${#samples[@]} - 1))); do
-        join -t $'\t' "$tmpdir/merged.tsv" "$tmpdir/${samples[i]}.tsv" > "$tmpdir/tmp.tsv"
+        join -t $'\t' "$tmpdir/merged.tsv" "$tmpdir/${samples[i]}.tsv" > "$tmpdir/tmp.tsv" \
+            || error_exit "Failed to merge sample ${samples[i]}"
         mv "$tmpdir/tmp.tsv" "$tmpdir/merged.tsv"
     done
 
-    # Write header and final matrix
     echo -e "transcript_id\t${samples[*]}" | tr ' ' '\t' > "$COUNT_MATRIX"
     cat "$tmpdir/merged.tsv" >> "$COUNT_MATRIX"
     rm -r "$tmpdir"
@@ -231,9 +341,10 @@ generate_matrix() {
     log "Count matrix generated at: $COUNT_MATRIX"
 }
 
-# ----------------------------- #
-#  Main workflow
-# ----------------------------- #
+# ============================== #
+# Main workflow
+# ============================== #
+
 main() {
     log "=== Starting RNA-Seq Quantification Pipeline ($TOOL) ==="
     check_inputs
