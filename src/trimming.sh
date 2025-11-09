@@ -9,7 +9,7 @@
 #    Outputs all trimmed files into a single output directory.
 #
 #  Usage:
-#    ./trim_reads.sh [DATADIR] [OUTDIR] [NCORES] [QUALITY] [MINLEN]
+#    ./trimming.sh [DATADIR] [OUTDIR] [NCORES] [QUALITY] [MINLEN]
 #
 #  Default parameters:
 #    DATADIR  = data
