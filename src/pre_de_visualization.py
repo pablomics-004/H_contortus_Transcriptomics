@@ -36,13 +36,16 @@ Example usage:
         --start-at 1 -O results/Images
 '''
 
-from pandas import DataFrame, read_csv
+from scipy.spatial.distance import pdist, squareform
 from argparse import Namespace, ArgumentParser
+from pandas import DataFrame, read_csv
 from sklearn.decomposition import PCA
 from sklearn.manifold import MDS
+from scipy.stats import zscore
 from datetime import datetime
 
 import matplotlib.pyplot as plt
+import multiprocessing as mp
 import logging as lg
 import seaborn as sns
 import numpy as np
@@ -104,6 +107,7 @@ def __standarize_df(
         start_at: int = 1,
 ) -> DataFrame:
     count = get_count_mtx(count_path=count_path, sep=sep, index_col=index_col)
+    count.index.name = None
     lg.info("[STANDARIZE] Count matrix succesfully charged in a DataFrame")
 
     try:
@@ -150,6 +154,61 @@ def __melt_mtx(count_log2: DataFrame) -> DataFrame:
 
     lg.info("[MELT] The DataFrame was succesfully melted")
     return count_log2_melt
+
+# ============================================================================= #
+#                                    CALC
+# ============================================================================= #
+
+def fit_pca(expression: DataFrame) -> tuple[PCA, np.ndarray]:
+    pca = PCA(n_components=2, svd_solver="full", tol=1e-9, random_state=5)
+
+    return pca, pca.fit_transform(expression.values) # Return model and coords
+
+def corrp(m: np.ndarray, axis: int = 1) -> np.ndarray:
+    Z = zscore(m, axis=axis, ddof=1)
+    if np.isnan(Z):
+        msg = "[CORRP] NaNs found after Zscore (constant samples?)"
+        lg.error(msg=msg)
+        raise ValueError(msg)
+    
+    p = m.shape[1]
+    R = (Z @ Z.T) / (p-1) # Pearson correlation based on thee covariance
+    np.fill_diagonal(R, 1.0)
+    R = np.clip(R, -1.0, 1.0)
+    D = 1 - R # Distance based on Pearson correlation
+    return (D + D.T) / 2 # Force symmetry
+
+def fit_mds(expression_log2: DataFrame, metric: str = "correlation", axis: int = 1, workers: int = 4) -> tuple[MDS, np.ndarray]:
+    valid_metrics = {"correlation", "manhattan", "euclidean"}
+
+    if not (metric := metric.lower()) in valid_metrics:
+        valid = "".join(valid_metrics)
+        msg = f"[FIT_MDS] No valid metric was provided, must be {valid}"
+        lg.error(msg=msg)
+        raise ValueError(msg)
+    
+    m = expression_log2.values
+    conditions, genes = m.shape
+
+    if genes > conditions and metric == "correlation":
+        D = corrp(m=m, axis=1)
+    else:
+        total = mp.cpu_count()
+        v = pdist(m, metric=metric, workers=max(2, total // 16))
+        D = squareform(v)
+
+    mds = MDS(
+        n_components=2, 
+        dissimilarity='precomputed', 
+        metric=True,
+        n_init=15, 
+        max_iter=1000, 
+        eps=1e-08, 
+        normalized_stress='auto',
+        random_state=5
+    )
+    
+    return mds, mds.fit_transform(D) # Return model and coords
 
 # ============================================================================= #
 #                                     PLOT
@@ -214,7 +273,6 @@ def data_kde(
         alpha: float = 0.25,
         suptitle: str = "Distribution per condition",
         color_palette: str = "Paired",
-        rotation: bool = True,
         svfig: bool = True,
         dpi: int = 300,
         filename: str = "condition_distributions.png",
@@ -223,7 +281,28 @@ def data_kde(
 ) -> None:
     valid_formats = {"png", "pdf", "svg", "eps", "ps"}
     palette = sns.color_palette(color_palette)
-    sns.displot(data=data, x=x, hue=hue, col=col, fill=fill, alpha=alpha)
+    sns.displot(data=data, x=x, hue=hue, col=col, fill=fill, alpha=alpha, palette=color_palette)
+    plt.suptitle(suptitle)
+    plt.tight_layout()
+
+    if svfig:
+        try:
+            formats = {}
+            if (fmt := filename.split(".")[-1]) and fmt in valid_formats:
+                formats.update(fmt)
+            if (fmt := format.split(",").strip()):
+                formats.update(f for f in fmt if f in valid_formats)
+
+        except Exception as e:
+            lg.error("[KDE] The saving format couldn't be applied")
+            
+        for fmt in formats:
+            plt.savefig(f'{outdir}/{filename}.{fmt}', dpi=dpi, bbox_inches='tight')
+
+        lg.info(f"[KDE] The plots were saved in {outdir} with the following formats: {formats}")
+    else:
+        plt.show()
+        lg.info("[KDE] The plots were displayed in the user stout but not saved")
 
     return
 
