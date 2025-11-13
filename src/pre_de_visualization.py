@@ -8,7 +8,7 @@ doing a Differential Gene Expression analysis. It supose the next structure of t
 gene_id,gene_name,sample1,sample2,...,samplen
 
 Authors: Yael Montiel-Vargas & Pablo Salazar-Méndez
-Version: 1.0.0
+Version: 2.0.0
 Date: 2025-11-07
 
 This script seeks to ease the decision making process for a succesful DGE analysis by helping in
@@ -30,10 +30,10 @@ Dependencies:
     - numpy
 
 Example usage:
-    python3 pre_de_visualization.py \
-        -m results/count_mtx.csv -c Treated,Untreated \
-        --blocks 3,4 -s "," -l 2 -o 4-6,1-3,7 \
-        --start-at 1 -O results/Images
+    python3 src/pre_de_visualization.py \
+        -m results/count_matrix.tsv -c Treated,Untreated \
+        --blocks 3,4 -s "\t" -l 2 -o 5-7,2-4,8 \
+        --start_at 1 -O results/Images
 '''
 
 from scipy.spatial.distance import pdist, squareform
@@ -95,7 +95,7 @@ def get_count_mtx(count_path: str, sep: str = "\t", index_col: int = 0) -> DataF
         lg.error(msg=msg)
         raise ValueError(msg)
 
-    count = read_csv(count_path, sep=sep, index_col=index_col)
+    count = read_csv(count_path, sep=sep, index_col=index_col, engine="python")
     if count.index.name:
         count.index.name = None
     
@@ -115,7 +115,6 @@ def __standarize_df(
         start_at: int = 1,
 ) -> DataFrame:
     count = get_count_mtx(count_path=count_path, sep=sep, index_col=index_col)
-    count.index.name = None
     lg.info("[STANDARIZE] Count matrix succesfully charged in a DataFrame")
 
     try:
@@ -134,7 +133,7 @@ def __standarize_df(
         msg = "[STANDARIZE] No valid indexes to reorder the DataFrame"
         lg.error(msg=msg)
         raise KeyError(msg)
-
+    
     try:
         count = count.iloc[:, idx]
         labels = []
@@ -145,7 +144,7 @@ def __standarize_df(
         count.columns = labels
 
     except Exception as e:
-        msg = "[STANDARIZE] Fail to reorganize the DataFrames with the given index"
+        msg = f"[STANDARIZE] Fail to reorganize the DataFrames with the given index with the following error: {e}"
         lg.error(msg=msg)
         raise ValueError(msg)
     
@@ -174,7 +173,7 @@ def __normalize_mtx(count_stand: DataFrame, logbase: int = 2) -> DataFrame:
                 count_log = np.log(count_stand + 1.0) / np.log(logbase)
 
     except Exception as e:
-        msg = f"[NORMALIZE] Fail to apply logarithmic (base {logbase}) normalization"
+        msg = f"[NORMALIZE] Fail to apply logarithmic (base {logbase}) normalization with the following error: {e}"
         lg.error(msg=msg)
         raise ValueError(msg)
 
@@ -264,7 +263,6 @@ def boxplot(
         hue: str = "Condition",
         title: str = "Distribution per condition",
         color_palette: str = "Paired",
-        rotation: bool = True,
         svfig: bool = True,
         dpi: int = 300,
         filename: str = "condition_distributions.png",
@@ -275,6 +273,7 @@ def boxplot(
     palette = sns.color_palette(color_palette)
     sns.boxplot(data=data, x=x, y=y, hue=hue, palette=[palette[i] for i, _ in enumerate(set(data[hue]))])
     plt.tight_layout()
+    plt.xticks(rotation=45)
     plt.title(title)
     plt.legend(
         bbox_to_anchor=(1.02, 0.5),   # Position outside the axe
@@ -284,8 +283,7 @@ def boxplot(
         title_fontsize=10,
         labelcolor = "black"
     )
-    if rotation:
-        plt.xticks(rotation=0.45)
+    
     if svfig:
         try:
             formats = set()
@@ -326,9 +324,25 @@ def data_kde(
         outdir: str = "results/Images"
 ) -> None:
     valid_formats = {"png", "pdf", "svg", "eps", "ps"}
-    sns.displot(data=data, x=x, hue=hue, col=col, fill=fill, alpha=alpha, palette=color_palette)
-    plt.suptitle(suptitle)
-    plt.tight_layout()
+    g = sns.displot(data=data, x=x, hue=hue, col=col, fill=fill, kind="kde", alpha=alpha, palette=color_palette)
+    for ax in g.axes.flat:
+        title = ax.get_title()
+        if "=" in title:
+            ax.set_title(title.split("=", 1)[1].strip())
+    g.figure.suptitle(suptitle)
+    g.figure.tight_layout(rect=[0, 0, 1, 0.95])
+
+    legend = g._legend
+    legend.set_title("Sample")
+    legend.get_title().set_fontweight("bold")
+
+    for t in legend.texts:
+        t.set_fontweight("bold")
+
+    legend.get_frame().set_facecolor("white")
+    legend.get_frame().set_edgecolor("black")
+    legend.get_frame().set_linewidth(1.2)
+    legend.set_bbox_to_anchor((1.0, 0.5))
 
     if svfig:
         try:
@@ -351,6 +365,7 @@ def data_kde(
     else:
         plt.show()
         lg.info("[KDE] The plots were displayed in the user stout but not saved")
+    plt.close(fig=g.figure)
 
     return
 
@@ -371,6 +386,7 @@ def plot_mds(
         outdir: str = "results/Images"
 ) -> None:
     valid_formats = {"png", "pdf", "svg", "eps", "ps"}
+    fig, ax = plt.subplots()
     sns.scatterplot(
         data=mds_df,
         x=x,
@@ -379,19 +395,20 @@ def plot_mds(
         style="Condition",
         edgecolor="purple"
     )
+    ax.set_title(title)
+    ax.grid(True, alpha=0.5, linestyle="--")
+
     plt.legend(
         [f"stress = {stress}"],
         #bbox_to_anchor=(0.7, 0.7),   # Position outside the axe
         loc='upper right',           # Legend location/position
         borderaxespad=0,
-        fontsize = 12,
+        fontsize=9,
         title_fontsize=10,
         labelcolor = "black"
     )
-    plt.title(title)
-    plt.tight_layout()
-    plt.axis("equal")
-    plt.grid(True, alpha=0.5, linestyle="--")
+
+    fig.tight_layout()
 
     if svfig:
         try:
@@ -414,6 +431,7 @@ def plot_mds(
     else:
         plt.show()
         lg.info("[MDS] The plot was displayed in the user stout but not saved")
+    plt.close(fig=fig)
 
     return
 
@@ -434,25 +452,30 @@ def plot_pca(
         outdir: str = "results/Images"
 ) -> None:
     valid_formats = {"png", "pdf", "svg", "eps", "ps"}
+    fig, ax = plt.subplots()
     sns.scatterplot(
         data=pca_df,
         x=f"{x} ({explained_variance[0]:.2f}%)",
         y=f"{y} ({explained_variance[1]:.2f}%)",
         hue="Condition",
         style="Condition",
-        edgecolor="purple"
+        edgecolor=edgecolor,
+        palette=color_palette,
+        ax=ax
     )
-    plt.legend(
-        #bbox_to_anchor=(0.7, 0.7),   # Position outside the axe
-        loc='upper right',           # Legend location/position
+    ax.set_title(title)
+    ax.grid(True, alpha=0.5, linestyle="--")
+
+    leg = ax.legend(
+        bbox_to_anchor=(1.25, 0.5),
+        loc='upper right',
         borderaxespad=0,
-        fontsize = 12,
+        fontsize=8,
         title_fontsize=10,
-        labelcolor = "black"
+        labelcolor="black"
     )
-    plt.title(title)
-    plt.tight_layout()
-    plt.grid(True, alpha=0.5, linestyle="--")
+
+    fig.tight_layout()
 
     if svfig:
         try:
@@ -475,6 +498,7 @@ def plot_pca(
     else:
         plt.show()
         lg.info("[PCA] The plot was displayed in the user stout but not saved")
+    plt.close(fig=fig)
 
     return
 
@@ -499,7 +523,7 @@ def main():
             case ",":
                 fmt = ".csv"
             case _:
-                msg = f"[MAIN] Invalid format for a table"
+                msg = f"[MAIN] Invalid format for a table {args.separator}"
                 lg.error(msg=msg)
                 raise ValueError(msg)
             
@@ -523,7 +547,6 @@ def main():
     data_kde(
         data=melt_mtx,
         x=labels[1], hue=labels[0], col=labels[2],
-        suptitle=args.kde_name,
         color_palette=args.palette_colors,
         dpi=args.dpi,
         filename=args.kde_name,
@@ -556,15 +579,19 @@ def main():
         outdir=args.output
     )
 
+    # ============================================ MDS ============================================ #
+
     if args.mds:
         sample_names = expression_transposed.index
+        cols = ["Dimension 1", "Dimension 2"]
         stress, mds_coords = fit_mds(expression_log2=expression_transposed, metric=args.metric, workers=args.workers)
-        mds_df = DataFrame(mds_coords, index=sample_names, columns=sample_names, dtype=np.float64)
+        mds_df = DataFrame(mds_coords, index=sample_names, columns=cols, dtype=np.float64)
+        mds_df["Condition"] = conditions
 
         plot_mds(
             mds_df=mds_df,
             stress=stress,
-            x="dimension 1", y="dimension 2",
+            x=cols[0], y=cols[1],
             hue="Condition",
             style="Condition",
             title="MDS",
@@ -574,6 +601,8 @@ def main():
             format=args.format_images,
             outdir=args.output
         )
+
+    lg.info("[MAIN] The pre-visualization pipeline has completed succesfully!")
 
 
 if __name__ == "__main__":
