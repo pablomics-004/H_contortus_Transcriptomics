@@ -84,6 +84,12 @@ def my_parser() -> Namespace:
     parser.add_argument("--kde_name", type=str, default="kde_per_condition.png", help="Name for KDE plot image")
     parser.add_argument("--pca_name", type=str, default="samples_pca.png", help="Name for saving the samples PCA plot")
     parser.add_argument("--mds_name", type=str, default="samples_mds.png", help="Name for saving the samples MDS plot")
+    parser.add_argument("--save_standard", action="store_true", help="Indicates wether to save or not the standarize matrix")
+    parser.add_argument("--stand_mtx_name", type=str, default="standard_count_mtx.tsv", help="Name for saving the standarize count matrix")
+    parser.add_argument("--cpm", action="store_true", help="Calculates the CPM matrix and saves the plots from it")
+    parser.add_argument("--save_cpm", action="store_true", help="Saves the CPM matrix with the rest of the plots")
+    parser.add_argument("--cpm_hist_name", type=str, default="cpm_histogram.png", help="Name for the histogram of the distributions of CPM values")
+    parser.add_argument("--cpm_cmap", type=str, default="Paired", help="Matplotlib colormap for CPM histogram")
 
     return parser.parse_args()
 
@@ -153,7 +159,7 @@ def __standarize_df(
 
     return count
 
-def __normalize_mtx(count_stand: DataFrame, logbase: int = 2) -> DataFrame:
+def __log_normalization(count_stand: DataFrame, logbase: int = 2) -> DataFrame:
     if logbase < 0:
         msg = f"[NORMALIZE] Negative logarithm bases aren't supported"
         lg.error(msg=msg)
@@ -248,6 +254,10 @@ def fit_mds(expression_log2: DataFrame, metric: str = "correlation", workers: in
     coords = coords - coords.mean(axis=0, keepdims=True)
     
     return mds.stress_, coords # Return stress value, coords and distance matrix
+
+def counts_per_million(count_matrix: DataFrame) -> DataFrame:
+    total_counts_sample = count_matrix.sum(axis=0)
+    return count_matrix.div(total_counts_sample, axis=1) * 1e6
 
 # ============================================================================= #
 #                                     PLOT
@@ -388,9 +398,10 @@ def plot_mds(
         data=mds_df,
         x=x,
         y=y,
-        hue="Condition",
-        style="Condition",
-        edgecolor="purple"
+        hue=hue,
+        style=style,
+        edgecolor=edgecolor,
+        palette=color_palette
     )
     ax.set_title(title)
     ax.grid(True, alpha=0.5, linestyle="--")
@@ -469,7 +480,7 @@ def plot_pca(
     ax.set_title(title)
     ax.grid(True, alpha=0.5, linestyle="--")
 
-    leg = ax.legend(
+    ax.legend(
         bbox_to_anchor=(1.25, 0.5),
         loc='upper right',
         borderaxespad=0,
@@ -505,6 +516,67 @@ def plot_pca(
 
     return
 
+def cpm_histogram(
+        cpm_matrix: np.ndarray, 
+        color_palette: str = "Paired", 
+        title: str = "CPM frequency",
+        xlbl: str = "CPM",
+        ylbl: str = "Frequency",
+        svfig: bool = True,
+        dpi: int = 300,
+        filename: str = "cpm_histogram.png",
+        format: str = "png,svg",
+        outdir: str = "results/Images"
+) -> None:
+    fig, ax = plt.subplots()
+    valid_formats = {"png", "pdf", "svg", "eps", "ps"}
+    data = cpm_matrix.ravel()
+    
+    color = sns.color_palette(color_palette)[1]
+    sns.histplot(
+        data=data,
+        bins=50,
+        binrange=(0, np.percentile(data, 99)),
+        kde=False,
+        color=color,
+        stat="frequency",
+        alpha=0.7,
+        ax=ax
+    )
+
+    xmax = np.quantile(data, 0.99) # Show til 99th percentile
+    ax.set_xlim(left=0, right=xmax)
+    ax.set_title(title)
+    ax.set_xlabel(xlbl)
+    ax.set_yscale("log")
+    ax.set_ylabel(ylbl)
+    fig.tight_layout()
+
+    if svfig:
+        try:
+            formats = set()
+            if (fmt := filename.split(".")[-1].strip()) and fmt in valid_formats:
+                formats.add(fmt)
+            if (fmt := format.split(",")):
+                formats.update(e for f in fmt if (e:=f.strip()) in valid_formats)
+
+        except Exception as e:
+            msg = "[CPM] The saving format couldn't be applied"
+            lg.error(msg)
+            raise ValueError("[CPM] The saving format couldn't be applied")
+            
+        for fmt in formats:
+            fname, _ = os.path.splitext(os.path.basename(filename))
+            plt.savefig(f'{outdir}/{fname}.{fmt}', dpi=dpi, bbox_inches='tight')
+
+        lg.info(f"[CPM] The plot was saved in {outdir} with the following formats: {formats}")
+    else:
+        plt.show()
+        lg.info("[CPM] The plot was displayed in the user stout but not saved")
+    plt.close(fig=fig)
+
+    return
+
 # ============================================================================= #
 #                                     MAIN
 # ============================================================================= #
@@ -513,29 +585,41 @@ def main():
     args = my_parser()
 
     count_matrix = __standarize_df(args.matrix, args.separator, args.index_col, args.order_col, args.conditions, args.blocks, args.start_at)
-    norm_count_mtx = __normalize_mtx(count_matrix, args.log_base)
+    norm_count_mtx = __log_normalization(count_matrix, args.log_base)
     melt_mtx = __melt_mtx(norm_count_mtx)
+    path = os.path.dirname(args.matrix)
+
+    match args.separator:
+            case r"\t":
+                sep = "\t"
+                ext = "tsv"
+            case ",":
+                sep = ","
+                ext = "csv"
+            case _:
+                msg = "[MAIN] The count matrix will be saved as TSV because the given extension is not supported"
+                sep = "\t"
+                ext = "tsv"
+                lg.error(msg=msg)
+
+    if args.save_standard:
+        fname, _ = os.path.splitext(os.path.basename(args.stand_mtx_name))
+        standard_mtx = count_matrix.copy()
+        standard_mtx.index.name = "gene_id"
+        standard_mtx.to_csv(os.path.join(path, f"{fname}.{ext}"), sep=sep)
+        del standard_mtx
+
+        lg.info(f"[SAVE MATRIX] Standarized count matrix saved at {path}")
 
     if args.save_mtx:
-        path = os.path.dirname(args.matrix)
         fname, _ = os.path.splitext(os.path.basename(args.matrix))
-
-        match args.separator:
-            case r"\t":
-                fmt = ".tsv"
-                sep = "\t"
-            case ",":
-                fmt = ".csv"
-                sep = ","
-            case _:
-                msg = f"[MAIN] Invalid format for a table {args.separator}"
-                lg.error(msg=msg)
-                raise ValueError(msg)
         
         norm_mtx = norm_count_mtx.copy()
         norm_mtx.index = count_matrix.index
         norm_mtx.index.name = "gene_id"
-        norm_mtx.to_csv(os.path.join(path, f"{fname}_log{args.log_base}_norm{fmt}"), sep=sep)
+        norm_mtx.to_csv(os.path.join(path, f"{fname}_log{args.log_base}_norm.{ext}"), sep=sep)
+        del norm_mtx
+
         lg.info(f"[SAVE MATRIX] Normalized (log{args.log_base}) count matrix saved at {path}")
     
     labels = melt_mtx.columns
@@ -608,6 +692,22 @@ def main():
             filename=args.mds_name,
             format=args.format_images,
             outdir=args.output
+        )
+
+    # ============================================ CPM ============================================ #
+
+    if args.cpm:
+        cpm = counts_per_million(count_matrix=count_matrix)
+        cpm_histogram(
+            cpm_matrix=cpm.values,
+            color_palette=args.cpm_cmap,
+            xlbl="CPM values",
+            ylbl="Frequency",
+            dpi=args.dpi,
+            filename=args.cpm_hist_name,
+            format=args.format_images,
+            outdir=args.output,
+            svfig=True
         )
 
     lg.info("[MAIN] The pre-visualization pipeline has completed succesfully!")
