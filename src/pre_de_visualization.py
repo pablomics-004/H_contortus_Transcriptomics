@@ -8,7 +8,7 @@ doing a Differential Gene Expression analysis. It supose the next structure of t
 gene_id,gene_name,sample1,sample2,...,samplen
 
 Authors: Yael Montiel-Vargas & Pablo Salazar-Méndez
-Version: 2.0.0
+Version: 2.1.0
 Date: 2025-11-07
 
 This script seeks to ease the decision making process for a succesful DGE analysis by helping in
@@ -45,11 +45,9 @@ from scipy.stats import zscore
 from datetime import datetime
 
 import matplotlib.pyplot as plt
-import multiprocessing as mp
 import logging as lg
 import seaborn as sns
 import numpy as np
-import sys
 import re
 import os
 
@@ -232,7 +230,6 @@ def fit_mds(expression_log2: DataFrame, metric: str = "correlation", workers: in
     if genes > conditions and metric == "correlation":
         D = corrp(m=m, axis=1)
     else:
-        total = mp.cpu_count()
         v = pdist(m, metric=metric, workers=workers)
         D = squareform(v)
 
@@ -398,8 +395,14 @@ def plot_mds(
     ax.set_title(title)
     ax.grid(True, alpha=0.5, linestyle="--")
 
+    ax.text(
+    0.02, 0.98, f"stress = {stress:.5f}",
+    transform=ax.transAxes,
+    ha="left", va="top",
+    fontsize=9, bbox=dict(facecolor="white", alpha=0.7, edgecolor="none")
+)
+
     plt.legend(
-        [f"stress = {stress}"],
         #bbox_to_anchor=(0.7, 0.7),   # Position outside the axe
         loc='upper right',           # Legend location/position
         borderaxespad=0,
@@ -518,16 +521,21 @@ def main():
         fname, _ = os.path.splitext(os.path.basename(args.matrix))
 
         match args.separator:
-            case "\t":
+            case r"\t":
                 fmt = ".tsv"
+                sep = "\t"
             case ",":
                 fmt = ".csv"
+                sep = ","
             case _:
                 msg = f"[MAIN] Invalid format for a table {args.separator}"
                 lg.error(msg=msg)
                 raise ValueError(msg)
-            
-        norm_count_mtx.to_csv(os.path.join(path, f"{fname}_log{args.log_base}_norm{fmt}"), sep=args.separator, index=False)
+        
+        norm_mtx = norm_count_mtx.copy()
+        norm_mtx.index = count_matrix.index
+        norm_mtx.index.name = "gene_id"
+        norm_mtx.to_csv(os.path.join(path, f"{fname}_log{args.log_base}_norm{fmt}"), sep=sep)
         lg.info(f"[SAVE MATRIX] Normalized (log{args.log_base}) count matrix saved at {path}")
     
     labels = melt_mtx.columns
