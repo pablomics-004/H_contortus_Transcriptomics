@@ -7,8 +7,8 @@ doing a Differential Gene Expression analysis. It supose the next structure of t
 
 gene_id,gene_name,sample1,sample2,...,samplen
 
-Authors: Yael Montiel-Vargas & Pablo Salazar-Méndez
-Version: 2.1.0
+Author: Pablo Salazar-Méndez
+Version: 2.3.0
 Date: 2025-11-07
 
 This script seeks to ease the decision making process for a succesful DGE analysis by helping in
