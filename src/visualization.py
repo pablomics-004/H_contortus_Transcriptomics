@@ -65,6 +65,7 @@ lg.basicConfig(
 def my_parser() -> Namespace:
     parser = ArgumentParser(description="Data visualization before DGE analysis pipeline")
     parser.add_argument("-m", "--matrix", required=True, type=str, help="Count matrix direction")
+    parser.add_argument("-a", "--already_stand", action="store_true", help="If the given matrix is already in a standarized version")
     parser.add_argument("-c", "--conditions", required=True, type=str, help="Condition to be compared separated by a coma (,)")
     parser.add_argument("-b", "--blocks", required=True, type=str, help="Number of blocks associated to each condition")
     parser.add_argument("-s", "--separator", type=str, default="\t", help="Separator of the count matrix (default is a tab)")
@@ -584,7 +585,11 @@ def cpm_histogram(
 def main():
     args = my_parser()
 
-    count_matrix = __standarize_df(args.matrix, args.separator, args.index_col, args.order_col, args.conditions, args.blocks, args.start_at)
+    if args.already_stand:
+        count_matrix = get_count_mtx(args.matrix, args.separator, args.index_col)
+    else:
+        count_matrix = __standarize_df(args.matrix, args.separator, args.index_col, args.order_col, args.conditions, args.blocks, args.start_at)
+        
     norm_count_mtx = __log_normalization(count_matrix, args.log_base)
     melt_mtx = __melt_mtx(norm_count_mtx)
     path = os.path.dirname(args.matrix)
