@@ -1,0 +1,40 @@
+2025-11-14 13:15:25,466 - INFO - Logging initialized. Logfile: combat/combat_seq_pipeline.log
+2025-11-14 13:15:25,872 - INFO - Loaded counts matrix 'standard_count_mtx.tsv' with shape (180400, 6)
+2025-11-14 13:15:25,872 - INFO - Parsed batches: {'suceptible': [2, 3, 4], 'resistant': [5, 6, 7]}
+2025-11-14 13:15:25,872 - INFO - Built sample->batch map for 6 samples
+2025-11-14 13:15:25,877 - INFO - Generated metadata dataframe with shape (6, 1)
+2025-11-14 13:15:25,888 - INFO - Metadata written to combat/metadata.tsv
+2025-11-14 13:15:25,898 - INFO - Found 2 batches
+2025-11-14 13:15:25,898 - INFO - Adjusting for 0 covariate(s) or covariate level(s)
+2025-11-14 13:15:25,938 - INFO - Estimating dispersions
+2025-11-14 13:15:49,511 - INFO - Fitting the GLM model
+2025-11-14 13:15:53,260 - INFO - shrinkage off - using GLM estimates for parameters
+2025-11-14 13:15:53,266 - WARNING - /Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/inmoose/pycombat/pycombat_seq.py:197: RuntimeWarning: divide by zero encountered in log
+  np.log(mu_hat[:, batches_ind[b]])
+
+2025-11-14 13:15:53,281 - INFO - Adjusting the data
+2025-11-14 13:15:56,135 - INFO - Applied ComBat-seq to 6 samples
+2025-11-14 13:15:58,256 - INFO - Corrected counts saved to combat/corrected_counts.tsv
+2025-11-14 13:15:58,300 - INFO - CPM filter (U=5.0, min_samples=3): before=180400 genes, after=25043 genes
+2025-11-14 13:15:59,836 - INFO - Filtered counts saved to combat/filtered_counts.tsv
+2025-11-14 13:15:59,836 - INFO - CPM matrix saved to combat/cpm_matrix.tsv
+2025-11-23 13:35:22,519 - INFO - Logging initialized. Logfile: combat/combat_seq_pipeline.log
+2025-11-23 13:35:22,897 - INFO - Loaded counts matrix 'standard_count_mtx.tsv' with shape (180400, 6)
+2025-11-23 13:35:22,897 - INFO - Parsed batches: {'suceptible': [2, 3, 4], 'resistant': [5, 6, 7]}
+2025-11-23 13:35:22,897 - INFO - Built sample->batch map for 6 samples
+2025-11-23 13:35:22,899 - INFO - Generated metadata dataframe with shape (6, 1)
+2025-11-23 13:35:22,901 - INFO - Metadata written to combat/metadata.tsv
+2025-11-23 13:35:22,911 - INFO - Found 2 batches
+2025-11-23 13:35:22,911 - INFO - Adjusting for 0 covariate(s) or covariate level(s)
+2025-11-23 13:35:22,948 - INFO - Estimating dispersions
+2025-11-23 13:35:46,601 - INFO - Fitting the GLM model
+2025-11-23 13:35:50,225 - INFO - shrinkage off - using GLM estimates for parameters
+2025-11-23 13:35:50,231 - WARNING - /Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/inmoose/pycombat/pycombat_seq.py:197: RuntimeWarning: divide by zero encountered in log
+  np.log(mu_hat[:, batches_ind[b]])
+
+2025-11-23 13:35:50,245 - INFO - Adjusting the data
+2025-11-23 13:35:52,908 - INFO - Applied ComBat-seq to 6 samples
+2025-11-23 13:35:54,211 - INFO - Corrected counts saved to combat/corrected_counts.tsv
+2025-11-23 13:35:54,257 - INFO - CPM filter (U=1.0, min_samples=3): before=180400 genes, after=54517 genes
+2025-11-23 13:35:55,931 - INFO - Filtered counts saved to combat/filtered_counts.tsv
+2025-11-23 13:35:55,931 - INFO - CPM matrix saved to combat/cpm_matrix.tsv
