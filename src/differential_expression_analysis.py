@@ -11,7 +11,10 @@ Date: 2025-11-23
 This script seeks to automate the Differential Expression Analysis of raw count matrix by having
 the next returns:
 
-    - ...
+    - Genes classficiation and their associated statistics matrix
+    - Differentially expressed genes IDs (UP, DOWN) table
+    - Volcano plots
+    - Heatmap
 
 Dependencies:
     - matplotlib.pyplot
@@ -20,6 +23,7 @@ Dependencies:
     - numpy
     - pydeseq2
     - visualization
+    - scipy or fastcluster
 
 The latter dependency is located within this same directory in the github page of this pipeline.
 
@@ -36,6 +40,7 @@ Example usage:
 
 from argparse import Namespace, ArgumentParser
 from visualization import get_count_mtx
+from contextlib import redirect_stdout
 from pydeseq2.dds import DeseqDataSet
 from pandas import DataFrame, Series
 from pydeseq2.ds import DeseqStats
@@ -46,18 +51,21 @@ import seaborn as sns
 import logging as lg
 import numpy as np
 import os
+import io
 
 # ============================================================================= #
 #                                   UTILITY
 # ============================================================================= #
 
-for handler in lg.root.handlers[:]:
-    lg.root.removeHandler(handler)
-    
-logger = lg.getLogger("diffexp")
-logger.setLevel(lg.INFO)
+logger = lg.getLogger("differential_expression")
 
-if not logger.handlers:
+def setup_logger(level=lg.INFO):
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(level)
+    logger.propagate = False
+
     log_filename = f"differential_expression_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
     fh = lg.FileHandler(log_filename)
     sh = lg.StreamHandler()
@@ -68,6 +76,8 @@ if not logger.handlers:
 
     logger.addHandler(fh)
     logger.addHandler(sh)
+
+    return logger
 
 def my_parser() -> Namespace:
     parser = ArgumentParser(description="Differential Expression Analysis pipeline")
@@ -83,7 +93,7 @@ def my_parser() -> Namespace:
     parser.add_argument("-S", "--save_ids", action="store_true", help="Saves a DataFrame with the gene_ids of the DE genes")
     parser.add_argument("--bar_name", type=str, default="bar_genes_classification.jpg", help="Bar plot name")
     parser.add_argument("--volcano_name", type=str, default="vulcano_diffexp.jpg", help="Vulcano plot name")
-    parser.add_argument("-t", "--top_genes", type=int, default=20, help="Top differentialy expressed genes")
+    parser.add_argument("-t", "--top_genes", type=int, default=0, help="Top differentialy expressed genes")
     parser.add_argument("--gene_name_col", type=str, default="", help="Name of the gene name column associated with the gene ID")
     parser.add_argument("--heatmap_name", type=str, default="heatmap_diffexp.jpg", help="Heatmap plot name")
     parser.add_argument("--image_formats", type=str, default="jpg,svg", help="Format for saving the plots separated by a coma ','")
@@ -112,23 +122,26 @@ def diffexp(
         padj: float = 1e-2
 ) -> tuple[DataFrame, DataFrame]:
     counts_transpose = counts.T
-    
+    conditions = list(design_matrix.iloc[:,0].unique())
+    reference = conditions[0]
+    interest = conditions[1]
     lfc = "log2FoldChange"
     var = "condition"
     p = "padj"
 
-    dds = DeseqDataSet(
-        counts=counts_transpose,
-        metadata=design_matrix,
-        design=f"~ {var}"
-    )
-    dds.deseq2()
+    logger.info(f"[DIFFEXP] Design matrix for pyDESeq2:\n{design_matrix}")
 
-    conditions = list(design_matrix.iloc[:,0].unique())
-    reference = conditions[0]
-    interest = conditions[1]
-    stats = DeseqStats(dds=dds, contrast=[var, interest, reference])
-    stats.summary()
+    with redirect_stdout(io.StringIO()) as f:
+        dds = DeseqDataSet(
+            counts=counts_transpose,
+            metadata=design_matrix,
+            design=f"~ {var}"
+        )
+        dds.deseq2()
+        stats = DeseqStats(dds=dds, contrast=[var, interest, reference])
+        stats.summary()
+
+    logger.info(f"[DIFFEXP] Stats summary captured:\n{f.getvalue()}")
 
     results = stats.results_df
 
@@ -232,7 +245,7 @@ def volcano_plot(
     lfc_criteria: int = 1,
     padj_criteria: float = 1e-2,
     gene_col_name: str = "gene_name",
-    top_genes: int = 20,
+    top_genes: int = 0,
     svfig: bool = False,
     filename: str = "genes_classification",
     outdir: str = "results/",
@@ -268,7 +281,8 @@ def volcano_plot(
     ax.axvline(-lfc_criteria, color='gray', linestyle='--', alpha=0.7)
     ax.axhline(log10_criteria, color='gray', linestyle='--', alpha=0.7)
 
-    annotate_top_genes(ax=ax,stats=stats,n=top_genes,name_col=gene_col_name)
+    if top_genes:
+        annotate_top_genes(ax=ax,stats=stats,n=top_genes,name_col=gene_col_name)
 
     fig.tight_layout()
 
@@ -363,6 +377,7 @@ def heatmap(
 # ============================================================================= #
 
 def main():
+    setup_logger()
     args = my_parser()
 
     os.makedirs(args.outdir, exist_ok=True)
