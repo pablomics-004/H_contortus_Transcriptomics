@@ -30,10 +30,14 @@ Dependencies:
     - numpy
 
 Example usage:
-    python3 src/pre_de_visualization.py \
-        -m results/count_matrix.tsv -c Treated,Untreated \
-        --blocks 3,4 -s "\t" -l 2 -o 5-7,2-4,8 \
-        --start_at 1 -O results/Images
+    python3 src/visualization.py \
+        -m results/counts_matrix_salmon.tsv \
+        -c Suceptible,Resistant \
+        --blocks 3,3 -s "\t" -l 2 \
+        -o 1-3,4-6 \
+        --start_at 1 -O results/Images \
+        -v -f png --mds --cpm \
+        --cpm_cmap "Paired" --save_standard
 '''
 
 from scipy.spatial.distance import pdist, squareform
@@ -55,12 +59,27 @@ import os
 #                                   UTILITY
 # ============================================================================= #
 
-log_filename = f"pre_visualization_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-lg.basicConfig(
-    level=lg.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[lg.FileHandler(log_filename), lg.StreamHandler()]
-)
+logger = lg.getLogger("visualization")
+
+def setup_logger(level=lg.INFO):
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(level)
+    logger.propagate = False
+
+    log_filename = f"visualization_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    fh = lg.FileHandler(log_filename)
+    sh = lg.StreamHandler()
+
+    formatter = lg.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    sh.setFormatter(formatter)
+
+    logger.addHandler(fh)
+    logger.addHandler(sh)
+
+    return logger
 
 def my_parser() -> Namespace:
     parser = ArgumentParser(description="Data visualization before DGE analysis pipeline")
@@ -97,7 +116,7 @@ def my_parser() -> Namespace:
 def get_count_mtx(count_path: str, sep: str = "\t", index_col: int = 0) -> DataFrame:
     if not os.path.isfile(count_path):
         msg = f"[GET] File {os.path.basename(count_path)} not available at {os.path.dirname(count_path)}"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
 
     count = read_csv(count_path, sep=sep, index_col=index_col, engine="python")
@@ -120,7 +139,7 @@ def __standarize_df(
         start_at: int = 1,
 ) -> DataFrame:
     count = get_count_mtx(count_path=count_path, sep=sep, index_col=index_col)
-    lg.info("[STANDARIZE] Count matrix succesfully charged in a DataFrame")
+    logger.info("[STANDARIZE] Count matrix succesfully charged in a DataFrame")
 
     try:
 
@@ -136,7 +155,7 @@ def __standarize_df(
 
     except Exception as e:
         msg = "[STANDARIZE] No valid indexes to reorder the DataFrame"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise KeyError(msg)
     
     try:
@@ -150,12 +169,12 @@ def __standarize_df(
 
     except Exception as e:
         msg = f"[STANDARIZE] Fail to reorganize the DataFrames with the given index with the following error: {e}"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
     
     if sum(blocks) != len(labels):
         msg = "[STANDATIZE] Discrepancy of the number of blocks and reorganized columns"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
 
     return count
@@ -163,7 +182,7 @@ def __standarize_df(
 def __log_normalization(count_stand: DataFrame, logbase: int = 2) -> DataFrame:
     if logbase < 0:
         msg = f"[NORMALIZE] Negative logarithm bases aren't supported"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
     try:      
 
@@ -179,7 +198,7 @@ def __log_normalization(count_stand: DataFrame, logbase: int = 2) -> DataFrame:
 
     except Exception as e:
         msg = f"[NORMALIZE] Fail to apply logarithmic (base {logbase}) normalization with the following error: {e}"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
 
     return count_log
@@ -190,10 +209,10 @@ def __melt_mtx(count_log2: DataFrame) -> DataFrame:
         count_log2_melt["Condition"] = count_log2_melt['Sample'].str.replace('_.$','', regex=True)
     except Exception as e:
         msg = "[MELT] Fail to melt samples and log values"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
 
-    lg.info("[MELT] The DataFrame was succesfully melted")
+    logger.info("[MELT] The DataFrame was succesfully melted")
     return count_log2_melt
 
 # ============================================================================= #
@@ -212,7 +231,7 @@ def corrp(m: np.ndarray, axis: int = 1) -> np.ndarray:
     Z = zscore(m, axis=axis, ddof=1)
     if np.isnan(Z).any():
         msg = "[CORRP] NaNs found after zscore (constant samples?)"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
     
     p = m.shape[1]
@@ -228,7 +247,7 @@ def fit_mds(expression_log2: DataFrame, metric: str = "correlation", workers: in
     if not (metric := metric.lower()) in valid_metrics:
         valid = "".join(valid_metrics)
         msg = f"[FIT_MDS] No valid metric was provided, must be {valid}"
-        lg.error(msg=msg)
+        logger.error(msg=msg)
         raise ValueError(msg)
     
     m = expression_log2.values
@@ -302,17 +321,17 @@ def boxplot(
 
         except Exception as e:
             msg = "[BOXPLOT] The saving format couldn't be applied"
-            lg.error(msg=msg)
+            logger.error(msg=msg)
             raise ValueError(msg)
             
         for fmt in formats:
             fname, _ = os.path.splitext(os.path.basename(filename))
             plt.savefig(f'{outdir}/{fname}.{fmt}', dpi=dpi, bbox_inches='tight')
 
-        lg.info(f"[BOXPLOT] The plots were saved in {outdir} with the following formats: {formats}")
+        logger.info(f"[BOXPLOT] The plots were saved in {outdir} with the following formats: {formats}")
     else:
         plt.show()
-        lg.info("[BOXPLOT] The plots were displayed in the user stout but not saved")
+        logger.info("[BOXPLOT] The plots were displayed in the user stout but not saved")
 
     return
 
@@ -362,17 +381,17 @@ def data_kde(
 
         except Exception as e:
             msg = "[KDE] The saving format couldn't be applied"
-            lg.error(msg=msg)
+            logger.error(msg=msg)
             raise ValueError(msg)
             
         for fmt in formats:
             fname, _ = os.path.splitext(os.path.basename(filename))
             plt.savefig(f'{outdir}/{fname}.{fmt}', dpi=dpi, bbox_inches='tight')
 
-        lg.info(f"[KDE] The plots were saved in {outdir} with the following formats: {formats}")
+        logger.info(f"[KDE] The plots were saved in {outdir} with the following formats: {formats}")
     else:
         plt.show()
-        lg.info("[KDE] The plots were displayed in the user stout but not saved")
+        logger.info("[KDE] The plots were displayed in the user stout but not saved")
     plt.close(fig=g.figure)
 
     return
@@ -435,17 +454,17 @@ def plot_mds(
 
         except Exception as e:
             msg = "[MDS] The saving format couldn't be applied"
-            lg.error(msg=msg)
+            logger.error(msg=msg)
             raise ValueError(msg)
             
         for fmt in formats:
             fname, _ = os.path.splitext(os.path.basename(filename))
             plt.savefig(f'{outdir}/{fname}.{fmt}', dpi=dpi, bbox_inches='tight')
 
-        lg.info(f"[MDS] The plot was saved in {outdir} with the following formats: {formats}")
+        logger.info(f"[MDS] The plot was saved in {outdir} with the following formats: {formats}")
     else:
         plt.show()
-        lg.info("[MDS] The plot was displayed in the user stout but not saved")
+        logger.info("[MDS] The plot was displayed in the user stout but not saved")
     plt.close(fig=fig)
 
     return
@@ -502,17 +521,17 @@ def plot_pca(
 
         except Exception as e:
             msg = "[PCA] The saving format couldn't be applied"
-            lg.error(msg)
+            logger.error(msg)
             raise ValueError("[PCA] The saving format couldn't be applied")
             
         for fmt in formats:
             fname, _ = os.path.splitext(os.path.basename(filename))
             plt.savefig(f'{outdir}/{fname}.{fmt}', dpi=dpi, bbox_inches='tight')
 
-        lg.info(f"[PCA] The plot was saved in {outdir} with the following formats: {formats}")
+        logger.info(f"[PCA] The plot was saved in {outdir} with the following formats: {formats}")
     else:
         plt.show()
-        lg.info("[PCA] The plot was displayed in the user stout but not saved")
+        logger.info("[PCA] The plot was displayed in the user stout but not saved")
     plt.close(fig=fig)
 
     return
@@ -563,17 +582,17 @@ def cpm_histogram(
 
         except Exception as e:
             msg = "[CPM] The saving format couldn't be applied"
-            lg.error(msg)
+            logger.error(msg)
             raise ValueError("[CPM] The saving format couldn't be applied")
             
         for fmt in formats:
             fname, _ = os.path.splitext(os.path.basename(filename))
             plt.savefig(f'{outdir}/{fname}.{fmt}', dpi=dpi, bbox_inches='tight')
 
-        lg.info(f"[CPM] The plot was saved in {outdir} with the following formats: {formats}")
+        logger.info(f"[CPM] The plot was saved in {outdir} with the following formats: {formats}")
     else:
         plt.show()
-        lg.info("[CPM] The plot was displayed in the user stout but not saved")
+        logger.info("[CPM] The plot was displayed in the user stout but not saved")
     plt.close(fig=fig)
 
     return
@@ -583,6 +602,7 @@ def cpm_histogram(
 # ============================================================================= #
 
 def main():
+    setup_logger()
     args = my_parser()
 
     if args.already_stand:
@@ -605,7 +625,7 @@ def main():
                 msg = "[MAIN] The count matrix will be saved as TSV because the given extension is not supported"
                 sep = "\t"
                 ext = "tsv"
-                lg.error(msg=msg)
+                logger.error(msg=msg)
 
     if args.save_standard:
         fname, _ = os.path.splitext(os.path.basename(args.stand_mtx_name))
@@ -614,7 +634,7 @@ def main():
         standard_mtx.to_csv(os.path.join(path, f"{fname}.{ext}"), sep=sep)
         del standard_mtx
 
-        lg.info(f"[SAVE MATRIX] Standarized count matrix saved at {path}")
+        logger.info(f"[SAVE MATRIX] Standarized count matrix saved at {path}")
 
     if args.save_mtx:
         fname, _ = os.path.splitext(os.path.basename(args.matrix))
@@ -625,7 +645,7 @@ def main():
         norm_mtx.to_csv(os.path.join(path, f"{fname}_log{args.log_base}_norm.{ext}"), sep=sep)
         del norm_mtx
 
-        lg.info(f"[SAVE MATRIX] Normalized (log{args.log_base}) count matrix saved at {path}")
+        logger.info(f"[SAVE MATRIX] Normalized (log{args.log_base}) count matrix saved at {path}")
     
     labels = melt_mtx.columns
     os.makedirs(args.output, exist_ok=True)
@@ -715,7 +735,7 @@ def main():
             svfig=True
         )
 
-    lg.info("[MAIN] The pre-visualization pipeline has completed succesfully!")
+    logger.info("[MAIN] The pre-visualization pipeline has completed succesfully!")
 
 
 if __name__ == "__main__":
