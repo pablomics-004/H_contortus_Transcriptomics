@@ -79,6 +79,92 @@ def setup_logger(level=lg.INFO):
 
     return logger
 
+def mapper(
+    A: DataFrame,
+    B: DataFrame,
+    *,
+    A_id_col: str = "",
+    B_id_col: str = "",
+    B_symbol_col: str = "symbol",
+    out_col: str = "symbol",
+    change_index: bool = False,
+    inplace: bool = True,
+) -> DataFrame | None:
+    """
+    Maps gene identifiers from DataFrame A to gene symbols from DataFrame B.
+
+    This function allows flexible merging/matching of gene IDs and their 
+    associated gene symbols. It supports cases where IDs appear either in
+    the index or in a specific column in both A and B. The resulting mapping
+    can either be added as a new column in A or used to replace its index.
+
+    Parameters
+    ----------
+    A : pandas.DataFrame
+        DataFrame whose gene IDs are to be mapped.
+
+    B : pandas.DataFrame
+        DataFrame containing gene IDs and their associated gene symbols.
+
+    A_id_col : str, default ""
+        Column in A containing gene IDs.  
+        If empty (""), the index of A is assumed to contain the IDs.
+
+    B_id_col : str, default ""
+        Column in B containing gene IDs.  
+        If empty (""), the index of B is assumed to contain the IDs.
+
+    B_symbol_col : str, default "symbol"
+        Column in B containing the gene symbols to map onto A.
+
+    out_col : str, default "symbol"
+        Name of the output column created in A when `change_index=False`.
+
+    change_index : bool, default False
+        If True, the index of A will be replaced by the mapped symbols
+        (or the original ID when no match is found).
+        If False, a new column containing the mapped values will be added.
+
+    inplace : bool, default True
+        If True, modifies A in place and returns None.
+        If False, returns a modified copy of A.
+
+    Returns
+    -------
+    pandas.DataFrame or None
+        - If `inplace=False`, returns the modified DataFrame.
+        - If `inplace=True`, returns None.
+
+    Notes
+    -----
+    - Any ID in A that does not exist in B will retain its original value
+      (either as index or in the output column).
+    - Both A and B may contain IDs as index or as a column; this function
+      generalizes gracefully to both layouts.
+
+    """
+    if not inplace:
+        A = A.copy()
+
+    A_ids: Series = A[A_id_col].astype(str) if A_id_col else A.index.astype(str)
+
+    if B_id_col:
+        B_map = B.set_index(B[B_id_col].astype(str))[B_symbol_col].astype(str)
+    else:
+        B_map = B[B_symbol_col].astype(str)
+        B_map.index = B_map.index.astype(str)
+
+    mapped = A_ids.map(B_map)
+    mapped = mapped.where(mapped.notna(), A_ids)
+
+    if change_index:
+        A.index = mapped
+        A.index.name = None
+    else:
+        A[out_col] = mapped
+
+    return None if inplace else A
+
 def my_parser() -> Namespace:
     parser = ArgumentParser(description="Differential Expression Analysis pipeline")
     parser.add_argument("-f", "--filtered_counts", type=str, required=True, help="Filtered raw count standarize matrix for DEA")
@@ -470,6 +556,7 @@ def main():
     # Heatmap
     gene_names = updown_genes.index
     heatmap_data = np.log1p(norm_counts_df.loc[:, gene_names]).T
+    print(heatmap_data)
 
     heatmap(
         data=heatmap_data,
