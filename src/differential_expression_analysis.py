@@ -89,6 +89,7 @@ def mapper(
     out_col: str = "symbol",
     change_index: bool = False,
     inplace: bool = True,
+    keep: str = "first"
 ) -> DataFrame | None:
     """
     Maps gene identifiers from DataFrame A to gene symbols from DataFrame B.
@@ -129,6 +130,10 @@ def mapper(
         If True, modifies A in place and returns None.
         If False, returns a modified copy of A.
 
+    keep : {"first","last"}, default "first"
+        Which duplicate to keep in B when multiple symbols exist
+        for the same ID.
+
     Returns
     -------
     pandas.DataFrame or None
@@ -146,19 +151,35 @@ def mapper(
     if not inplace:
         A = A.copy()
 
-    A_ids: Series = A[A_id_col].astype(str) if A_id_col else A.index.astype(str)
+    if A_id_col:
+        A_ids = A[A_id_col].astype(str)
+    else:
+        A_ids = Series(A.index.astype(str), index=A.index)
 
     if B_id_col:
-        B_map = B.set_index(B[B_id_col].astype(str))[B_symbol_col].astype(str)
+        tmp = B[[B_id_col, B_symbol_col]].copy()
+        tmp[B_id_col] = tmp[B_id_col].astype(str)
+        tmp[B_symbol_col] = tmp[B_symbol_col].astype(str)
+        if tmp[B_id_col].duplicated().any():
+            ndup = tmp[B_id_col].duplicated().sum()
+            lg.warning(f"[MAPPER] B has {ndup} duplicated IDs in '{B_id_col}'. Keeping {keep}.")
+        tmp = tmp.drop_duplicates(subset=B_id_col, keep=keep)
+        B_map = tmp.set_index(B_id_col)[B_symbol_col]
     else:
-        B_map = B[B_symbol_col].astype(str)
-        B_map.index = B_map.index.astype(str)
+        tmp = B[[B_symbol_col]].copy()
+        tmp.index = tmp.index.astype(str)
+        tmp[B_symbol_col] = tmp[B_symbol_col].astype(str)
+        if tmp.index.duplicated().any():
+            ndup = tmp.index.duplicated().sum()
+            lg.warning(f"[MAPPER] B has {ndup} duplicated index IDs. Keeping {keep}.")
+        tmp = tmp[~tmp.index.duplicated(keep=keep)]
+        B_map = tmp[B_symbol_col]
 
-    mapped = A_ids.map(B_map)
-    mapped = mapped.where(mapped.notna(), A_ids)
+    mapped = Series(A_ids.map(B_map), index=A_ids.index)
+    mapped = mapped.fillna(A_ids)
 
     if change_index:
-        A.index = mapped
+        A.index = mapped.values
         A.index.name = None
     else:
         A[out_col] = mapped
@@ -174,6 +195,7 @@ def my_parser() -> Namespace:
     parser.add_argument("-P", "--padjust", type=float, default=1e-2, help="padjust value criteria for statistical significance")
     parser.add_argument("-O", "--outdir", type=str, default=f"{os.getcwd()}", help="Stores the directory for the results")
     parser.add_argument("--DE_matrix_name", type=str, default="diffexp_matrix.tsv", help="Name for the differential expression analysis matrix")
+    parser.add_argument("--normcounts_name", type=str, default="normcounts.tsv", help="Name for the normalized count matrix")
     parser.add_argument("-s", "--separator", type=str, default="\t", help="Separator of the filtered counts matrix. The output file of the pipeline will have the same separator")
     parser.add_argument("-i", "--index_col", type=int, default=0, help="Column that will become the row index")
     parser.add_argument("-S", "--save_ids", action="store_true", help="Saves a DataFrame with the gene_ids of the DE genes")
@@ -514,6 +536,10 @@ def main():
     dea_clean.to_csv(os.path.join(parent, f"{fname}.{ext}"), sep=sep)
     logger.info(f"[MAIN] Differential expression stats table saved at {parent}")
 
+    fname2 = os.path.splitext(os.path.basename(args.normcounts_name))[0]
+    norm_counts_df.to_csv(os.path.join(parent, f"{fname2}.{ext}"), sep=sep)
+    logger.info(f"[MAIN] Normalized counts by pyDESeq2 table saved at {parent}")
+
     updown_genes = dea_clean[dea_clean["Expression"].isin(["UP","DOWN"])]
 
     if args.save_ids:
@@ -556,7 +582,6 @@ def main():
     # Heatmap
     gene_names = updown_genes.index
     heatmap_data = np.log1p(norm_counts_df.loc[:, gene_names]).T
-    print(heatmap_data)
 
     heatmap(
         data=heatmap_data,
