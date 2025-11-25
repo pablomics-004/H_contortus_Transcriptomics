@@ -2,3 +2,4 @@
 .DS_Store
 test/bioproject_data/*
 data/Trinity.fasta
+/data/TRIMMED/*
