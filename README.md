@@ -2,7 +2,7 @@
 Date: 29/08/2025
 
 This repository contains the bioinformatics pipeline and transcriptomic analysis of Haemonchus contortus, focusing on the molecular basis of ivermectin resistance.
-The project compares ivermectin-susceptible (IVM-S) and ivermectin-resistant (IVM-R) strains through RNA-seq differential expression analysis. This project reproduces and extends the analysis from Reyes-Guerrero _et.al_ (2023).
+The project compares ivermectin-susceptible (IVM-S) and ivermectin-resistant (IVM-R) strains through RNA-seq differential expression analysis. This project reproduces and extends the analysis from [Reyes-Guerrero _et.al_ (2023)](https://doi.org/10.3390/pathogens12030499).
 
 **Participants**:  
 - Pablo Salazar-Mendez <pablosm@lcg.unam.mz>
