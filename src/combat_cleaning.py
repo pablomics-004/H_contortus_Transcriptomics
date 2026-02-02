@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 """
-"""
 Combat-Seq Pipeline for RNA-Seq Count Matrix Batch Correction
 ------------------------------------------------------------
 
