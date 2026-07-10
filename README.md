@@ -148,15 +148,35 @@ Detailed instructions for environment configuration and pipeline execution will 
 
 ```text
 .
-├── data/        # Raw or intermediate processed data 
-├── doc/         # Project documentation (notes, references, methodological reports)
-├── results/     # Final processed outputs (tables, figures, HTML reports)
-├── src/         # Source code and analysis scripts (Bash, Python, R)
-├── lib/         # External libraries, modules, or custom functions
-├── test/        # Test scripts and validation files
-├── tmp/         # Temporary or intermediate files generated during execution
-├── LICENSE      # Legal license information for the project
-└── README.md    # Project overview and execution instructions
+├── data
+├── doc
+│   ├── Abstract_RNAgels_2.md
+│   ├── bioproject_pipeline_documentation.md
+│   └── RNAngels_final_report.md
+├── LICENSE
+├── README.md
+├── results
+│   ├── annotation_enrichment
+│   ├── combat
+│   ├── filtered_annotation
+│   └── Images
+├── src
+│   ├── bioproject_pipeline.py
+│   ├── combat_cleaning.py
+│   ├── concat_gz.sh
+│   ├── differential_expression_analysis.py
+│   ├── enrichment.py
+│   ├── fastqc_precheck.sh
+│   ├── process_trionate.sh
+│   ├── __pycache__
+│   │   └── visualization.cpython-312.pyc
+│   ├── rna_cuantification.sh
+│   ├── run_prefetch.sh
+│   ├── temp_script.sh
+│   ├── testing_mapper.ipynb
+│   ├── trimming.sh
+│   └── visualization.py
+└── tmp
 ```
 
 ## Citation
